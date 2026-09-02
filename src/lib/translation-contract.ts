@@ -1,0 +1,64 @@
+import { z } from "zod";
+import { languageCodes } from "@/lib/languages";
+
+export const tones = [
+  "casual",
+  "polite",
+  "formal",
+  "slang",
+  "written",
+] as const;
+
+export type Tone = (typeof tones)[number];
+
+const contextNotes: Record<Tone, string> = {
+  casual: "친한 친구나 가까운 사이에서 편하게 말할 때",
+  polite: "낯선 사람에게 예의를 갖춰 말할 때",
+  formal: "업무나 공식적인 상황에서 격식을 갖출 때",
+  slang: "친한 사이에서 자연스러운 구어체로 말할 때",
+  written: "이메일이나 글로 자연스럽게 표현할 때",
+};
+
+export const translateRequestSchema = z.object({
+  sourceText: z
+    .string()
+    .trim()
+    .min(1, "번역할 문장을 입력해 주세요.")
+    .max(500, "문장은 500자 이하로 입력해 주세요."),
+  targetLanguage: z.enum(languageCodes),
+});
+
+export const translationVariantSchema = z.object({
+  tone: z.enum(tones),
+  translatedText: z.string().trim().min(1).max(1200),
+  transliteration: z.string().trim().max(1200).nullable(),
+  contextNote: z.string().trim().min(1).max(240),
+  warning: z.string().trim().max(240).nullable(),
+});
+
+const modelTextSchema = z.string().trim().min(1).max(1200);
+
+export const ollamaTranslationSchema = z.object({
+  casual: modelTextSchema,
+  polite: modelTextSchema,
+  formal: modelTextSchema,
+  slang: modelTextSchema,
+  written: modelTextSchema,
+});
+
+export type TranslationVariant = z.infer<typeof translationVariantSchema>;
+
+export function normalizeVariants(
+  output: z.infer<typeof ollamaTranslationSchema>,
+): TranslationVariant[] {
+  return tones.map((tone) => ({
+    tone,
+    translatedText: output[tone],
+    transliteration: null,
+    contextNote: contextNotes[tone],
+    warning:
+      tone === "slang"
+        ? "상대와 상황에 따라 가볍거나 무례하게 들릴 수 있어요."
+        : null,
+  }));
+}

@@ -1,0 +1,30 @@
+export type ApiErrorBody = {
+  error: {
+    code: string;
+    message: string;
+    retryable: boolean;
+  };
+  requestId: string;
+};
+
+export function jsonError(
+  requestId: string,
+  status: number,
+  code: string,
+  message: string,
+  retryable = false,
+) {
+  return Response.json(
+    { error: { code, message, retryable }, requestId } satisfies ApiErrorBody,
+    { status, headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+export async function readJson<T>(response: Response): Promise<T> {
+  const body = (await response.json()) as T | ApiErrorBody;
+  if (!response.ok) {
+    const maybeError = body as ApiErrorBody;
+    throw new Error(maybeError.error?.message ?? "요청을 완료하지 못했습니다.");
+  }
+  return body as T;
+}

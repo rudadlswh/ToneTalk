@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tonetalk-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tonetalk
+      POSTGRES_USER: tonetalk
+      POSTGRES_PASSWORD: tonetalk
+    ports:
+      - "5432:5432"
+    volumes:
+      - tonetalk-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tonetalk -d tonetalk"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  tonetalk-postgres-data:

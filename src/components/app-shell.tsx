@@ -1,0 +1,84 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  BookMarked,
+  Brain,
+  Languages,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
+
+const navigation = [
+  { href: "/", label: "Translate", icon: Languages, enabled: true },
+  { href: "/saved", label: "Saved", icon: BookMarked, enabled: true },
+  { href: "/study", label: "Study", icon: Brain, enabled: false },
+  { href: "/settings", label: "Profile", icon: UserRound, enabled: false },
+];
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  return (
+    <div className="app-shell">
+      <aside className="side-nav" aria-label="주요 메뉴">
+        <Link href="/" className="brand-lockup" aria-label="ToneTalk 홈">
+          <span className="brand-mark"><Sparkles size={20} /></span>
+          <span>ToneTalk</span>
+        </Link>
+        <nav className="nav-list">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            if (!item.enabled) {
+              return (
+                <span className="nav-item is-disabled" key={item.href} aria-disabled="true">
+                  <Icon size={20} />
+                  <span>{item.label}</span>
+                  <span className="soon-badge">Soon</span>
+                </span>
+              );
+            }
+            return (
+              <Link className={`nav-item ${active ? "is-active" : ""}`} href={item.href} key={item.href}>
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="local-model-card">
+          <span className="status-dot" />
+          <div>
+            <strong>Local & private</strong>
+            <span>Private Ollama</span>
+          </div>
+        </div>
+      </aside>
+
+      <main className="main-content">{children}</main>
+
+      <nav className="bottom-nav" aria-label="모바일 주요 메뉴">
+        {navigation.map((item) => {
+          const Icon = item.icon;
+          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          if (!item.enabled) {
+            return (
+              <span className="bottom-nav-item is-disabled" key={item.href} aria-disabled="true">
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </span>
+            );
+          }
+          return (
+            <Link className={`bottom-nav-item ${active ? "is-active" : ""}`} href={item.href} key={item.href}>
+              <Icon size={20} />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
