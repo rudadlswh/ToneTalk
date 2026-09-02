@@ -35,3 +35,38 @@ export type SavedPhraseDto = {
   warning: string | null;
   savedAt: string;
 };
+
+export type StudyRating = "again" | "hard" | "good" | "easy";
+
+export type StudyItemDto = SavedPhraseDto & {
+  repetitions: number;
+  intervalDays: number;
+  reviewCount: number;
+  nextReviewAt: string | null;
+};
+
+export type StudySummaryDto = {
+  totalSaved: number;
+  dueCount: number;
+  reviewedToday: number;
+  masteredCount: number;
+  streakDays: number;
+  dailyGoal: number;
+  nextReviewAt: string | null;
+};
+
+export type ProfileDto = {
+  id: string;
+  email: string | null;
+  displayName: string;
+  defaultTargetLanguage: TargetLanguage;
+  dailyStudyGoal: number;
+  createdAt: string;
+};
+
+export type ProfileStatsDto = {
+  translationCount: number;
+  savedPhraseCount: number;
+  masteredCount: number;
+  streakDays: number;
+};

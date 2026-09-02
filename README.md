@@ -12,10 +12,14 @@
 - 한국어·일본어·중국어 결과의 대상 문자 검증
 - 톤별 복사, 저장, 저장 취소
 - 저장 문장 검색, 언어 필터, 복사, 삭제
+- 저장 문장 기반 플래시카드 복습과 4단계 자기 평가
+- 간격 반복 일정, 오늘의 목표, 연속 학습일, 익힌 표현 통계
+- 표시 이름·기본 번역 언어·하루 복습 목표 설정
+- PostgreSQL·Ollama 연결 상태를 보여주는 로컬 프로필
 - 모바일 하단 내비게이션과 데스크톱 사이드 내비게이션
 - PostgreSQL 영속 저장과 버전 관리 마이그레이션
 - Ollama·DB 상태 확인, 번역 요청 제한, 표준 오류 응답
-- 번역 계약·요청 제한 자동 테스트
+- 번역 계약·요청 제한·복습 일정·프로필 입력 자동 테스트
 
 ## 기술 선택
 
@@ -42,6 +46,7 @@ Next.js Route Handlers
   ├─ Zod input validation
   ├─ in-process rate limit
   ├─ Translation service ──▶ Ollama 192.168.45.140:11434
+  ├─ Study scheduler
   └─ Data Access Layer ────▶ PostgreSQL
 ```
 
@@ -65,15 +70,21 @@ tonetalk/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── health/
+│   │   │   ├── profile/
 │   │   │   ├── translations/
+│   │   │   ├── study/
 │   │   │   └── saved-phrases/
+│   │   ├── profile/
 │   │   ├── saved/
+│   │   ├── study/
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── components/
 │   │   ├── app-shell.tsx
+│   │   ├── profile-workspace.tsx
 │   │   ├── translate-workspace.tsx
+│   │   ├── study-workspace.tsx
 │   │   └── saved-workspace.tsx
 │   ├── db/
 │   │   └── schema.ts
@@ -99,7 +110,7 @@ tonetalk/
 app_users
   id PK
   email UNIQUE NULL
-  display_name
+  display_name, default_target_language, daily_study_goal
   created_at, updated_at
 
 translation_sessions
@@ -121,6 +132,19 @@ saved_phrases
   variant_id FK -> translation_variants.id
   created_at
   UNIQUE(owner_id, variant_id)
+
+study_progress
+  id PK
+  owner_id FK -> app_users.id
+  saved_phrase_id FK -> saved_phrases.id UNIQUE
+  repetitions, interval_days, ease_percent, review_count
+  last_reviewed_at, next_review_at, created_at, updated_at
+
+study_review_events
+  id PK
+  owner_id FK -> app_users.id
+  saved_phrase_id FK -> saved_phrases.id
+  rating, reviewed_at
 ```
 
 초기 사용자는 `SINGLE_USER_ID=single-user`로 자동 생성됩니다. 이메일 로그인 도입 시 `getCurrentOwnerId()`만 인증 세션 기반으로 교체하고 기존 DAL의 `owner_id` 조건을 그대로 사용합니다.
@@ -134,6 +158,10 @@ saved_phrases
 | `GET` | `/api/saved-phrases?q=&language=&limit=` | 저장 문장 검색·필터 |
 | `POST` | `/api/saved-phrases` | 특정 번역 variant 저장 |
 | `DELETE` | `/api/saved-phrases/:id` | 소유자 범위에서 저장 삭제 |
+| `GET` | `/api/study?limit=` | 오늘 복습할 카드와 학습 요약 |
+| `POST` | `/api/study/reviews` | 자기 평가 기록과 다음 복습일 계산 |
+| `GET` | `/api/profile` | 사용자 설정과 학습 통계 |
+| `PATCH` | `/api/profile` | 표시 이름·기본 언어·하루 목표 변경 |
 
 ### 번역 요청
 
@@ -175,7 +203,19 @@ saved_phrases
 - 저장 카드 목록
 - 복사·삭제와 빈 상태
 
-Study와 Profile은 정보 구조만 내비게이션에 표시하고, MVP 후속 기능으로 비활성화했습니다.
+### Study `/study`
+
+- 저장 표현의 원문을 먼저 보여주는 플래시카드
+- 정답 공개 후 `다시·어려움·좋음·쉬움` 자기 평가
+- 평가에 따른 다음 복습 일정 자동 계산
+- 오늘의 목표, 복습 대기 수, 익힌 표현, 연속 학습일
+
+### Profile `/profile`
+
+- 번역·저장·학습 통계
+- 표시 이름, 기본 번역 언어, 하루 복습 목표 설정
+- PostgreSQL과 Ollama 연결 상태
+- 단일 사용자와 로컬 데이터 처리 안내
 
 ## 실행 방법
 
@@ -232,5 +272,5 @@ curl http://localhost:3000/api/health
 2. 이메일 인증 도입 후 `owner_id`를 실제 사용자 세션으로 연결
 3. 번역 평가셋을 추가해 모델·프롬프트 변경 시 의미 보존 회귀 테스트
 4. 발음 표기는 DB와 UI 필드만 준비되어 있으며, 현재 모델 지연을 줄이기 위해 생성하지 않음
-5. 저장 목록을 커서 페이지네이션과 PostgreSQL 다국어 검색 인덱스로 확장
+5. 저장·복습 목록을 커서 페이지네이션과 PostgreSQL 다국어 검색 인덱스로 확장
 6. 운영 배포 시 TLS, 비밀 관리, DB 백업, Ollama 네트워크 접근 제어 적용

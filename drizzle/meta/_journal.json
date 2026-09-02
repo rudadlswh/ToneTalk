@@ -8,6 +8,20 @@
       "when": 1788311902141,
       "tag": "0000_rare_magneto",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788328278982,
+      "tag": "0001_slippery_blizzard",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788328588528,
+      "tag": "0002_special_star_brand",
+      "breakpoints": true
     }
   ]
 }

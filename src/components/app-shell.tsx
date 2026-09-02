@@ -13,8 +13,8 @@ import {
 const navigation = [
   { href: "/", label: "Translate", icon: Languages, enabled: true },
   { href: "/saved", label: "Saved", icon: BookMarked, enabled: true },
-  { href: "/study", label: "Study", icon: Brain, enabled: false },
-  { href: "/settings", label: "Profile", icon: UserRound, enabled: false },
+  { href: "/study", label: "Study", icon: Brain, enabled: true },
+  { href: "/profile", label: "Profile", icon: UserRound, enabled: true },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

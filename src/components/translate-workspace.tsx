@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bookmark,
   Check,
@@ -40,6 +40,29 @@ export function TranslateWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [savingVariantId, setSavingVariantId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadDefaultLanguage = async () => {
+      try {
+        const response = await fetch("/api/profile", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const data = (await response.json()) as {
+          profile?: { defaultTargetLanguage?: TargetLanguage };
+        };
+        if (data.profile?.defaultTargetLanguage) {
+          setTargetLanguage(data.profile.defaultTargetLanguage);
+        }
+      } catch {
+        // The translator remains usable with Japanese as the safe default.
+      }
+    };
+    void loadDefaultLanguage();
+    return () => controller.abort();
+  }, []);
 
   const showToast = (message: string) => {
     setToast(message);

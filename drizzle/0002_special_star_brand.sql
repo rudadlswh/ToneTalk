@@ -1,0 +1,5 @@
+CREATE INDEX "study_review_events_saved_phrase_idx" ON "study_review_events" USING btree ("saved_phrase_id");--> statement-breakpoint
+ALTER TABLE "app_users" ADD CONSTRAINT "app_users_default_target_language_check" CHECK ("app_users"."default_target_language" in ('ja', 'ko', 'fr', 'es', 'zh-CN', 'de'));--> statement-breakpoint
+ALTER TABLE "app_users" ADD CONSTRAINT "app_users_daily_study_goal_check" CHECK ("app_users"."daily_study_goal" between 1 and 100);--> statement-breakpoint
+ALTER TABLE "study_progress" ADD CONSTRAINT "study_progress_schedule_values_check" CHECK ("study_progress"."repetitions" >= 0 and "study_progress"."interval_days" >= 0 and "study_progress"."review_count" >= 0 and "study_progress"."ease_percent" between 130 and 300);--> statement-breakpoint
+ALTER TABLE "study_review_events" ADD CONSTRAINT "study_review_events_rating_check" CHECK ("study_review_events"."rating" in ('again', 'hard', 'good', 'easy'));
