@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Check, Clipboard, LoaderCircle, Search, Trash2, X } from "lucide-react";
+import { BookOpen, Check, Clipboard, LoaderCircle, Search, Square, Trash2, Volume2, X } from "lucide-react";
+import { useSpeech } from "@/hooks/use-speech";
 import { readJson } from "@/lib/api";
 import type { SavedPhraseDto } from "@/lib/dto";
 import { getLanguage, languages } from "@/lib/languages";
@@ -27,6 +28,7 @@ export function SavedWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const { speakingId, speechError, speak, stop } = useSpeech();
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(query), 300);
@@ -74,7 +76,12 @@ export function SavedWorkspace() {
     showToast("클립보드에 복사했어요.");
   };
 
+  const playTranslation = (item: SavedPhraseDto) => {
+    speak({ id: item.id, text: item.translatedText, language: item.targetLanguage });
+  };
+
   const remove = async (id: string) => {
+    if (speakingId === id) stop();
     const previous = items;
     setItems((current) => current.filter((item) => item.id !== id));
     try {
@@ -148,6 +155,15 @@ export function SavedWorkspace() {
                 </div>
                 <div className="saved-card-actions">
                   <time dateTime={item.savedAt}>{new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric" }).format(new Date(item.savedAt))}</time>
+                  <button
+                    type="button"
+                    className={speakingId === item.id ? "is-speaking" : ""}
+                    onClick={() => playTranslation(item)}
+                    aria-label={speakingId === item.id ? "음성 중지" : "번역 듣기"}
+                  >
+                    {speakingId === item.id ? <Square size={14} /> : <Volume2 size={16} />}
+                    {speakingId === item.id ? "Stop" : "Listen"}
+                  </button>
                   <button type="button" onClick={() => void copyText(item.translatedText)}><Clipboard size={16} />Copy</button>
                   <button type="button" className="danger-icon" onClick={() => void remove(item.id)} aria-label="저장 문장 삭제"><Trash2 size={17} /></button>
                 </div>
@@ -156,7 +172,7 @@ export function SavedWorkspace() {
           })}
         </div>
       )}
-      {toast && <div className="toast" role="status"><Check size={17} />{toast}</div>}
+      {(toast || speechError) && <div className="toast" role="status"><Check size={17} />{toast ?? speechError}</div>}
     </div>
   );
 }

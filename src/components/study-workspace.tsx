@@ -10,9 +10,12 @@ import {
   LoaderCircle,
   RotateCcw,
   Sparkles,
+  Square,
   Target,
   Trophy,
+  Volume2,
 } from "lucide-react";
+import { useSpeech } from "@/hooks/use-speech";
 import { readJson } from "@/lib/api";
 import type {
   StudyItemDto,
@@ -62,6 +65,7 @@ export function StudyWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const { speakingId, speechError, speak, stop } = useSpeech();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,6 +100,7 @@ export function StudyWorkspace() {
 
   const review = async (rating: StudyRating) => {
     if (!current || submitting) return;
+    stop();
     setSubmitting(true);
     setError(null);
     try {
@@ -129,6 +134,11 @@ export function StudyWorkspace() {
         minute: "2-digit",
       }).format(new Date(summary.nextReviewAt))
     : null;
+
+  const playAnswer = () => {
+    if (!current) return;
+    speak({ id: current.id, text: current.translatedText, language: current.targetLanguage });
+  };
 
   return (
     <div className="page-wrap study-page">
@@ -202,7 +212,18 @@ export function StudyWorkspace() {
               </button>
             ) : (
               <div className="study-answer">
-                <span className="answer-label">ANSWER</span>
+                <div className="study-answer-heading">
+                  <span className="answer-label">ANSWER</span>
+                  <button
+                    type="button"
+                    className={`speech-button ${speakingId === current.id ? "is-speaking" : ""}`}
+                    onClick={playAnswer}
+                    aria-label={speakingId === current.id ? "정답 음성 중지" : "정답 듣기"}
+                  >
+                    {speakingId === current.id ? <Square size={14} /> : <Volume2 size={16} />}
+                    {speakingId === current.id ? "중지" : "듣기"}
+                  </button>
+                </div>
                 <p className="translation-text" lang={current.targetLanguage}>{current.translatedText}</p>
                 {current.transliteration && <p className="transliteration">{current.transliteration}</p>}
                 <p className="context-note">{current.contextNote}</p>
@@ -233,7 +254,7 @@ export function StudyWorkspace() {
           {error && <div className="inline-error" role="alert">{error}</div>}
         </section>
       )}
-      {toast && <div className="toast" role="status"><Sparkles size={17} />{toast}</div>}
+      {(toast || speechError) && <div className="toast" role="status"><Sparkles size={17} />{toast ?? speechError}</div>}
     </div>
   );
 }

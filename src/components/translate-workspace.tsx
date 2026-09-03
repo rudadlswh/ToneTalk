@@ -7,8 +7,11 @@ import {
   Clipboard,
   LoaderCircle,
   Sparkles,
+  Square,
+  Volume2,
   X,
 } from "lucide-react";
+import { useSpeech } from "@/hooks/use-speech";
 import type { TranslationSessionDto } from "@/lib/dto";
 import {
   getLanguage,
@@ -51,6 +54,7 @@ export function TranslateWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [savingVariantId, setSavingVariantId] = useState<string | null>(null);
+  const { speakingId, speechError, speak, stop } = useSpeech();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -81,7 +85,7 @@ export function TranslateWorkspace() {
   };
 
   const changeSourceLanguage = (next: SourceLanguage) => {
-
+    stop();
     setSourceLanguage(next);
     setSession(null);
     setError(null);
@@ -92,7 +96,7 @@ export function TranslateWorkspace() {
   };
 
   const changeTargetLanguage = (next: TargetLanguage) => {
-
+    stop();
     setTargetLanguage(next);
     setSession(null);
     setError(null);
@@ -101,7 +105,7 @@ export function TranslateWorkspace() {
   const translate = async () => {
     const cleanText = sourceText.trim();
     if (!cleanText || loading) return;
-
+    stop();
     setLoading(true);
     setError(null);
     try {
@@ -122,6 +126,10 @@ export function TranslateWorkspace() {
   const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text);
     showToast("번역을 클립보드에 복사했어요.");
+  };
+
+  const playTranslation = (id: string, text: string, language: string) => {
+    speak({ id, text, language });
   };
 
   const toggleSave = async (variantId: string, savedPhraseId: string | null) => {
@@ -299,6 +307,15 @@ export function TranslateWorkspace() {
                       <div className="tone-card-top">
                         <span className="tone-badge"><span>{meta.emoji}</span>{meta.label}</span>
                         <div className="card-actions">
+                          <button
+                            type="button"
+                            className={`icon-button ${speakingId === variant.id ? "is-speaking" : ""}`}
+                            onClick={() => playTranslation(variant.id, variant.translatedText, session.targetLanguage)}
+                            aria-label={speakingId === variant.id ? `${meta.label} 음성 중지` : `${meta.label} 번역 듣기`}
+                            title={speakingId === variant.id ? "음성 중지" : "번역 듣기"}
+                          >
+                            {speakingId === variant.id ? <Square size={15} /> : <Volume2 size={17} />}
+                          </button>
                           <button type="button" className="icon-button" onClick={() => void copyText(variant.translatedText)} aria-label={`${meta.label} 번역 복사`}>
                             <Clipboard size={17} />
                           </button>
@@ -325,7 +342,7 @@ export function TranslateWorkspace() {
           )}
         </section>
       </div>
-      {toast && <div className="toast" role="status"><Check size={17} />{toast}</div>}
+      {(toast || speechError) && <div className="toast" role="status"><Check size={17} />{toast ?? speechError}</div>}
     </div>
   );
 }
