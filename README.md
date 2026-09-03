@@ -6,11 +6,13 @@
 
 ## 구현된 핵심 기능
 
-- 영어 원문을 일본어·한국어·프랑스어·스페인어·중국어·독일어로 번역
+- 영어·일본어·한국어·프랑스어·스페인어·중국어·독일어 입력과 자동 언어 감지
+- 입력 언어를 제외한 6개 언어 중 하나를 번역 언어로 선택
 - Casual, Polite, Formal, Slang, Written 5개 톤 동시 생성
 - 구조화 모델 출력 검증과 잘못된 출력 1회 자동 재시도
 - 한국어·일본어·중국어 결과의 대상 문자 검증
 - 톤별 복사, 저장, 저장 취소
+- 번역 결과·저장 표현·복습 정답 TTS 재생 및 중지
 - 저장 문장 검색, 언어 필터, 복사, 삭제
 - 저장 문장 기반 플래시카드 복습과 4단계 자기 평가
 - 간격 반복 일정, 오늘의 목표, 연속 학습일, 익힌 표현 통계
@@ -27,6 +29,7 @@
 |---|---|---|
 | 풀스택 | Next.js 16 App Router, React 19, TypeScript | UI와 BFF를 한 서버로 배포하고 Ollama·DB를 브라우저에서 격리 |
 | UI | Tailwind CSS 기반 토큰, Lucide Icons | 반응형·접근 가능한 UI를 작은 의존성으로 구성 |
+| TTS | Web Speech API + macOS `say` | 브라우저 음성을 우선 사용하고 미지원 환경에서는 외부 API 없이 로컬 시스템 음성으로 대체 |
 | DB | PostgreSQL 16, Drizzle ORM | 관계·중복 제약, 검색·정렬, 향후 사용자 소유권을 명확히 관리 |
 | 검증 | Zod | 브라우저 입력과 모델 JSON을 동일한 계약으로 검증 |
 | LLM | Ollama, `qwen2.5:14b` | 설치된 작은 모델의 의미 보존 실패를 확인해 정확도를 우선 |
@@ -39,18 +42,21 @@
 ```text
 Browser
   ├─ Translate UI
-  └─ Saved UI
+  ├─ Saved / Study / Profile UI
+  └─ Web Speech API (지원 브라우저)
         │ same-origin HTTP
         ▼
 Next.js Route Handlers
   ├─ Zod input validation
   ├─ in-process rate limit
   ├─ Translation service ──▶ Ollama 192.168.45.140:11434
+  ├─ TTS fallback ─────────▶ macOS system voice (`say`)
   ├─ Study scheduler
   └─ Data Access Layer ────▶ PostgreSQL
 ```
 
 - 클라이언트에는 DB 연결 문자열과 Ollama 주소가 전달되지 않습니다.
+- 브라우저의 Web Speech API를 우선 사용하고, 미지원 환경에서는 `/api/tts`가 macOS 시스템 음성으로 임시 오디오를 생성해 반환합니다. 음성 파일은 응답 후 즉시 삭제합니다.
 - Ollama 응답은 JSON 파싱, Zod 스키마, 대상 문자 검증을 모두 통과해야 저장됩니다.
 - 모델이 생성하지 않아도 되는 한국어 사용 맥락과 Slang 주의 문구는 앱에서 일관되게 제공합니다.
 - DB와 Ollama 중 하나가 실패해도 표준 오류 코드와 재시도 가능 여부를 반환합니다.
@@ -72,6 +78,7 @@ tonetalk/
 │   │   │   ├── health/
 │   │   │   ├── profile/
 │   │   │   ├── translations/
+│   │   │   ├── tts/
 │   │   │   ├── study/
 │   │   │   └── saved-phrases/
 │   │   ├── profile/
@@ -92,7 +99,10 @@ tonetalk/
 │   │   ├── api.ts
 │   │   ├── dto.ts
 │   │   ├── languages.ts
-│   │   └── translation-contract.ts
+│   │   ├── translation-contract.ts
+│   │   └── tts-contract.ts
+│   ├── hooks/
+│   │   └── use-speech.ts
 │   └── server/
 │       ├── db.ts
 │       ├── env.ts
@@ -100,6 +110,7 @@ tonetalk/
 │       ├── owner.ts
 │       ├── rate-limit.ts
 │       ├── saved-phrases.ts
+│       ├── tts.ts
 │       └── translations.ts
 └── tests/
 ```
@@ -155,6 +166,7 @@ study_review_events
 |---|---|---|
 | `GET` | `/api/health` | PostgreSQL과 설정된 Ollama 모델 상태 |
 | `POST` | `/api/translations` | 5톤 번역 생성 및 저장 |
+| `POST` | `/api/tts` | Web Speech 미지원 시 macOS 로컬 음성 오디오 생성 |
 | `GET` | `/api/saved-phrases?q=&language=&limit=` | 저장 문장 검색·필터 |
 | `POST` | `/api/saved-phrases` | 특정 번역 variant 저장 |
 | `DELETE` | `/api/saved-phrases/:id` | 소유자 범위에서 저장 삭제 |
@@ -168,6 +180,7 @@ study_review_events
 ```json
 {
   "sourceText": "How are you?",
+  "sourceLanguage": "auto",
   "targetLanguage": "ja"
 }
 ```
@@ -189,11 +202,13 @@ study_review_events
 
 ### Translate `/`
 
-- 대상 언어 6개 선택
-- 500자 원문 입력과 예문
+- 입력 언어 자동 감지 또는 7개 언어 직접 선택
+- 입력 언어를 제외한 대상 언어 선택
+- 선택한 입력 언어별 500자 원문 입력과 예문
 - 로딩 스켈레톤, 오류 배너
 - 5개 톤 결과 카드
 - 복사·저장·저장 취소
+- 언어별 번역 음성 재생·중지
 - 데스크톱 입력/결과 2열, 모바일 단일 열
 
 ### Saved `/saved`
@@ -202,11 +217,13 @@ study_review_events
 - 대상 언어 필터
 - 저장 카드 목록
 - 복사·삭제와 빈 상태
+- 저장한 번역 음성 재생·중지
 
 ### Study `/study`
 
 - 저장 표현의 원문을 먼저 보여주는 플래시카드
 - 정답 공개 후 `다시·어려움·좋음·쉬움` 자기 평가
+- 정답 번역 음성 재생·중지
 - 평가에 따른 다음 복습 일정 자동 계산
 - 오늘의 목표, 복습 대기 수, 익힌 표현, 연속 학습일
 
@@ -274,3 +291,4 @@ curl http://localhost:3000/api/health
 4. 발음 표기는 DB와 UI 필드만 준비되어 있으며, 현재 모델 지연을 줄이기 위해 생성하지 않음
 5. 저장·복습 목록을 커서 페이지네이션과 PostgreSQL 다국어 검색 인덱스로 확장
 6. 운영 배포 시 TLS, 비밀 관리, DB 백업, Ollama 네트워크 접근 제어 적용
+7. macOS가 아닌 서버 배포 시 Piper 같은 로컬 TTS 엔진 어댑터 추가
