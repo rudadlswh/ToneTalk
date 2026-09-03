@@ -6,6 +6,7 @@ import {
   Check,
   Clipboard,
   LoaderCircle,
+  RefreshCw,
   Sparkles,
   Square,
   Volume2,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 import { useSpeech } from "@/hooks/use-speech";
 import type { TranslationSessionDto } from "@/lib/dto";
+import { getInitialExamples, getRandomExamples } from "@/lib/examples";
 import {
   getLanguage,
   languages,
@@ -22,17 +24,6 @@ import {
 } from "@/lib/languages";
 import { readJson } from "@/lib/api";
 import type { Tone } from "@/lib/translation-contract";
-
-const examples: Record<SourceLanguage, string[]> = {
-  auto: ["How are you?", "정말 감사합니다!", "Enchanté de vous rencontrer."],
-  en: ["How are you?", "Thank you so much!", "Could you help me?"],
-  ja: ["お元気ですか？", "本当にありがとうございます！", "手伝ってもらえますか？"],
-  ko: ["어떻게 지내세요?", "정말 감사합니다!", "도와주실 수 있나요?"],
-  fr: ["Comment allez-vous ?", "Merci beaucoup !", "Pourriez-vous m'aider ?"],
-  es: ["¿Cómo estás?", "¡Muchas gracias!", "¿Podrías ayudarme?"],
-  "zh-CN": ["你好吗？", "非常感谢！", "你能帮我吗？"],
-  de: ["Wie geht es dir?", "Vielen Dank!", "Könntest du mir helfen?"],
-};
 
 const toneMeta: Record<Tone, { label: string; emoji: string; className: string }> = {
   casual: { label: "Casual", emoji: "😊", className: "tone-casual" },
@@ -54,6 +45,7 @@ export function TranslateWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [savingVariantId, setSavingVariantId] = useState<string | null>(null);
+  const [visibleExamples, setVisibleExamples] = useState(() => getInitialExamples("auto"));
   const { speakingId, speechError, speak, stop } = useSpeech();
 
   useEffect(() => {
@@ -87,6 +79,7 @@ export function TranslateWorkspace() {
   const changeSourceLanguage = (next: SourceLanguage) => {
     stop();
     setSourceLanguage(next);
+    setVisibleExamples(getInitialExamples(next));
     setSession(null);
     setError(null);
     if (next !== "auto" && next === targetLanguage) {
@@ -130,6 +123,10 @@ export function TranslateWorkspace() {
 
   const playTranslation = (id: string, text: string, language: string) => {
     speak({ id, text, language });
+  };
+
+  const refreshExamples = () => {
+    setVisibleExamples((current) => getRandomExamples(sourceLanguage, current));
   };
 
   const toggleSave = async (variantId: string, savedPhraseId: string | null) => {
@@ -247,9 +244,21 @@ export function TranslateWorkspace() {
           </div>
 
           <div className="examples">
-            <span>예문으로 시작하기</span>
-            <div className="example-list">
-              {examples[sourceLanguage].map((example) => (
+            <div className="examples-heading">
+              <span>예문으로 시작하기</span>
+              <button
+                type="button"
+                className="refresh-examples-button"
+                onClick={refreshExamples}
+                aria-label="새로운 예문 보기"
+                title="새로운 예문 보기"
+              >
+                <RefreshCw size={13} />
+                새로고침
+              </button>
+            </div>
+            <div className="example-list" aria-live="polite" aria-label="추천 예문">
+              {visibleExamples.map((example) => (
                 <button type="button" key={example} onClick={() => setSourceText(example)}>{example}</button>
               ))}
             </div>

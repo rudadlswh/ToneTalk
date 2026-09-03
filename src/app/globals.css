@@ -91,7 +91,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .icon-button.is-speaking { color: white; background: var(--violet); box-shadow: 0 6px 14px rgba(117,87,255,.2); }
 .icon-button:disabled { opacity: .55; cursor: wait; }
 .examples { margin: 18px 0; }
-.examples > span { display: block; margin-bottom: 9px; color: #8a8b99; font-size: 11px; font-weight: 700; }
+.examples-heading { margin-bottom: 9px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.examples-heading > span { color: #8a8b99; font-size: 11px; font-weight: 700; }
+.refresh-examples-button { min-height: 28px; padding: 0 8px; display: inline-flex; align-items: center; gap: 5px; color: #777989; background: transparent; border: 1px solid #e7e3eb; border-radius: 8px; font-size: 9px; font-weight: 760; cursor: pointer; transition: .18s ease; }
+.refresh-examples-button:hover { color: var(--violet); background: #f7f5ff; border-color: #ddd6ff; }
+.refresh-examples-button:active svg { transform: rotate(180deg); }
+.refresh-examples-button svg { transition: transform .25s ease; }
 .example-list { display: flex; flex-wrap: wrap; gap: 7px; }
 .example-list button { padding: 7px 10px; color: #686b7c; background: #f4f2f6; border: 1px solid transparent; border-radius: 999px; font-size: 11px; cursor: pointer; }
 .example-list button:hover { color: var(--violet); border-color: #ddd6ff; background: #f7f5ff; }
