@@ -4,6 +4,7 @@ import { translateRequestSchema } from "@/lib/translation-contract";
 import {
   OllamaOutputError,
   OllamaUnavailableError,
+  SameLanguageError,
 } from "@/server/ollama";
 import { consumeRateLimit } from "@/server/rate-limit";
 import { createTranslation } from "@/server/translations";
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     const input = translateRequestSchema.parse(await request.json());
     const session = await createTranslation(
       input.sourceText,
+      input.sourceLanguage,
       input.targetLanguage,
     );
     return Response.json(
@@ -55,6 +57,14 @@ export async function POST(request: Request) {
         "OLLAMA_UNAVAILABLE",
         "로컬 번역 모델에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
         true,
+      );
+    }
+    if (error instanceof SameLanguageError) {
+      return jsonError(
+        requestId,
+        422,
+        "SAME_LANGUAGE",
+        "감지된 입력 언어와 번역 언어가 같습니다. 번역 언어를 바꿔 주세요.",
       );
     }
     if (error instanceof OllamaOutputError) {

@@ -8,16 +8,18 @@ import {
 
 const validOutput = Object.fromEntries(
   tones.map((tone) => [tone, `${tone} translation`]),
-) as Record<(typeof tones)[number], string>;
+) as Record<(typeof tones)[number], string> & { sourceLanguage: "en" };
+validOutput.sourceLanguage = "en";
 
 describe("translation contract", () => {
   it("accepts a valid translation request", () => {
     expect(
       translateRequestSchema.parse({
         sourceText: "  Thank you  ",
+        sourceLanguage: "auto",
         targetLanguage: "ko",
       }),
-    ).toEqual({ sourceText: "Thank you", targetLanguage: "ko" });
+    ).toEqual({ sourceText: "Thank you", sourceLanguage: "auto", targetLanguage: "ko" });
   });
 
   it("rejects blank and oversized source text", () => {
@@ -28,6 +30,25 @@ describe("translation contract", () => {
       translateRequestSchema.parse({
         sourceText: "a".repeat(501),
         targetLanguage: "ja",
+      }),
+    ).toThrow();
+  });
+
+  it("defaults to automatic detection for older clients", () => {
+    expect(
+      translateRequestSchema.parse({
+        sourceText: "Bonjour",
+        targetLanguage: "ko",
+      }).sourceLanguage,
+    ).toBe("auto");
+  });
+
+  it("rejects identical manually selected languages", () => {
+    expect(() =>
+      translateRequestSchema.parse({
+        sourceText: "Bonjour",
+        sourceLanguage: "fr",
+        targetLanguage: "fr",
       }),
     ).toThrow();
   });

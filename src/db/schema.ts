@@ -30,7 +30,7 @@ export const appUsers = pgTable(
   (table) => [
     check(
       "app_users_default_target_language_check",
-      sql`${table.defaultTargetLanguage} in ('ja', 'ko', 'fr', 'es', 'zh-CN', 'de')`,
+      sql`${table.defaultTargetLanguage} in ('en', 'ja', 'ko', 'fr', 'es', 'zh-CN', 'de')`,
     ),
     check(
       "app_users_daily_study_goal_check",

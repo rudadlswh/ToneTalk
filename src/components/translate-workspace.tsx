@@ -10,16 +10,26 @@ import {
   X,
 } from "lucide-react";
 import type { TranslationSessionDto } from "@/lib/dto";
-import { getLanguage, languages, type TargetLanguage } from "@/lib/languages";
+import {
+  getLanguage,
+  languages,
+  sourceLanguages,
+  type SourceLanguage,
+  type TargetLanguage,
+} from "@/lib/languages";
 import { readJson } from "@/lib/api";
 import type { Tone } from "@/lib/translation-contract";
 
-const examples = [
-  "How are you?",
-  "Thank you so much!",
-  "Nice to meet you.",
-  "Could you help me?",
-];
+const examples: Record<SourceLanguage, string[]> = {
+  auto: ["How are you?", "정말 감사합니다!", "Enchanté de vous rencontrer."],
+  en: ["How are you?", "Thank you so much!", "Could you help me?"],
+  ja: ["お元気ですか？", "本当にありがとうございます！", "手伝ってもらえますか？"],
+  ko: ["어떻게 지내세요?", "정말 감사합니다!", "도와주실 수 있나요?"],
+  fr: ["Comment allez-vous ?", "Merci beaucoup !", "Pourriez-vous m'aider ?"],
+  es: ["¿Cómo estás?", "¡Muchas gracias!", "¿Podrías ayudarme?"],
+  "zh-CN": ["你好吗？", "非常感谢！", "你能帮我吗？"],
+  de: ["Wie geht es dir?", "Vielen Dank!", "Könntest du mir helfen?"],
+};
 
 const toneMeta: Record<Tone, { label: string; emoji: string; className: string }> = {
   casual: { label: "Casual", emoji: "😊", className: "tone-casual" },
@@ -34,6 +44,7 @@ type SaveResponse = { savedPhraseId: string; requestId: string };
 
 export function TranslateWorkspace() {
   const [sourceText, setSourceText] = useState("");
+  const [sourceLanguage, setSourceLanguage] = useState<SourceLanguage>("auto");
   const [targetLanguage, setTargetLanguage] = useState<TargetLanguage>("ja");
   const [session, setSession] = useState<TranslationSessionDto | null>(null);
   const [loading, setLoading] = useState(false);
@@ -69,16 +80,35 @@ export function TranslateWorkspace() {
     window.setTimeout(() => setToast(null), 2200);
   };
 
+  const changeSourceLanguage = (next: SourceLanguage) => {
+
+    setSourceLanguage(next);
+    setSession(null);
+    setError(null);
+    if (next !== "auto" && next === targetLanguage) {
+      const alternative = languages.find((language) => language.code !== next);
+      if (alternative) setTargetLanguage(alternative.code);
+    }
+  };
+
+  const changeTargetLanguage = (next: TargetLanguage) => {
+
+    setTargetLanguage(next);
+    setSession(null);
+    setError(null);
+  };
+
   const translate = async () => {
     const cleanText = sourceText.trim();
     if (!cleanText || loading) return;
+
     setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/translations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceText: cleanText, targetLanguage }),
+        body: JSON.stringify({ sourceText: cleanText, sourceLanguage, targetLanguage }),
       });
       const data = await readJson<TranslationResponse>(response);
       setSession(data.session);
@@ -153,8 +183,9 @@ export function TranslateWorkspace() {
                 role="radio"
                 aria-checked={targetLanguage === language.code}
                 className={`language-chip ${targetLanguage === language.code ? "is-selected" : ""}`}
+                disabled={sourceLanguage !== "auto" && sourceLanguage === language.code}
                 key={language.code}
-                onClick={() => setTargetLanguage(language.code)}
+                onClick={() => changeTargetLanguage(language.code)}
               >
                 <span>{language.flag}</span>
                 <span>{language.nativeName}</span>
@@ -162,13 +193,34 @@ export function TranslateWorkspace() {
             ))}
           </div>
 
+          <div className="input-language-row">
+            <span className="section-label">Input language</span>
+            <label className="source-language-select">
+              <span aria-hidden="true">{sourceLanguages.find((language) => language.code === sourceLanguage)?.flag}</span>
+              <select
+                value={sourceLanguage}
+                aria-label="입력 언어 선택"
+                onChange={(event) => changeSourceLanguage(event.target.value as SourceLanguage)}
+              >
+                {sourceLanguages.map((language) => (
+                  <option value={language.code} key={language.code}>
+                    {language.code === "auto" ? language.nativeName : `${language.name} · ${language.nativeName}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <div className="source-block">
-            <div className="source-label"><span>🇺🇸</span> English</div>
+            <div className="source-label">
+              <span>{sourceLanguages.find((language) => language.code === sourceLanguage)?.flag}</span>
+              {sourceLanguages.find((language) => language.code === sourceLanguage)?.name}
+            </div>
             <textarea
               value={sourceText}
               maxLength={500}
-              placeholder="Type a sentence to translate..."
-              aria-label="번역할 영어 문장"
+              placeholder="번역할 문장을 입력하세요..."
+              aria-label="번역할 문장"
               onChange={(event) => setSourceText(event.target.value)}
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === "Enter" && !event.nativeEvent.isComposing) {
@@ -187,9 +239,9 @@ export function TranslateWorkspace() {
           </div>
 
           <div className="examples">
-            <span>Try an example</span>
+            <span>예문으로 시작하기</span>
             <div className="example-list">
-              {examples.map((example) => (
+              {examples[sourceLanguage].map((example) => (
                 <button type="button" key={example} onClick={() => setSourceText(example)}>{example}</button>
               ))}
             </div>
@@ -229,7 +281,12 @@ export function TranslateWorkspace() {
               <div className="results-header">
                 <div>
                   <span className="section-label">5 tone translations</span>
-                  <h2>{getLanguage(session.targetLanguage)?.flag} {getLanguage(session.targetLanguage)?.nativeName}</h2>
+                  <h2 className="result-language-pair">
+                    <span>{getLanguage(session.sourceLanguage)?.flag} {getLanguage(session.sourceLanguage)?.nativeName}</span>
+                    <span aria-hidden="true">→</span>
+                    <span>{getLanguage(session.targetLanguage)?.flag} {getLanguage(session.targetLanguage)?.nativeName}</span>
+                  </h2>
+                  {sourceLanguage === "auto" && <span className="detected-language">입력 언어 자동 감지됨</span>}
                 </div>
                 <span>{(session.latencyMs / 1000).toFixed(1)}s · {session.model}</span>
               </div>

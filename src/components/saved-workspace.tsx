@@ -132,12 +132,13 @@ export function SavedWorkspace() {
       {!loading && items.length > 0 && (
         <div className="saved-list">
           {items.map((item) => {
+            const source = getLanguage(item.sourceLanguage);
             const target = getLanguage(item.targetLanguage);
             return (
               <article className={`saved-card tone-${item.tone}`} key={item.id}>
                 <div className="saved-card-main">
                   <div className="saved-card-header">
-                    <span className="language-pair">🇺🇸 English <span>→</span> {target?.flag} {target?.name ?? item.targetLanguage}</span>
+                    <span className="language-pair">{source?.flag} {source?.name ?? item.sourceLanguage} <span>→</span> {target?.flag} {target?.name ?? item.targetLanguage}</span>
                     <span className="tone-badge">{toneLabels[item.tone]}</span>
                   </div>
                   <p className="saved-source">{item.sourceText}</p>

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { languageCodes } from "@/lib/languages";
+import { languageCodes, sourceLanguageCodes } from "@/lib/languages";
 
 export const tones = [
   "casual",
@@ -25,7 +25,16 @@ export const translateRequestSchema = z.object({
     .trim()
     .min(1, "번역할 문장을 입력해 주세요.")
     .max(500, "문장은 500자 이하로 입력해 주세요."),
+  sourceLanguage: z.enum(sourceLanguageCodes).default("auto"),
   targetLanguage: z.enum(languageCodes),
+}).superRefine((input, context) => {
+  if (input.sourceLanguage !== "auto" && input.sourceLanguage === input.targetLanguage) {
+    context.addIssue({
+      code: "custom",
+      path: ["targetLanguage"],
+      message: "입력 언어와 번역 언어를 다르게 선택해 주세요.",
+    });
+  }
 });
 
 export const translationVariantSchema = z.object({
@@ -39,6 +48,7 @@ export const translationVariantSchema = z.object({
 const modelTextSchema = z.string().trim().min(1).max(1200);
 
 export const ollamaTranslationSchema = z.object({
+  sourceLanguage: z.enum(languageCodes),
   casual: modelTextSchema,
   polite: modelTextSchema,
   formal: modelTextSchema,

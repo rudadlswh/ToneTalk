@@ -1,4 +1,4 @@
-import type { TargetLanguage } from "@/lib/languages";
+import type { LanguageCode, TargetLanguage } from "@/lib/languages";
 import type { Tone } from "@/lib/translation-contract";
 
 export type TranslationVariantDto = {
@@ -14,7 +14,7 @@ export type TranslationVariantDto = {
 export type TranslationSessionDto = {
   id: string;
   sourceText: string;
-  sourceLanguage: string;
+  sourceLanguage: LanguageCode;
   targetLanguage: TargetLanguage;
   model: string;
   latencyMs: number;

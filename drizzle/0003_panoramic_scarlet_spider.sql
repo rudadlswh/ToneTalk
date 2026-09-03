@@ -1,0 +1,2 @@
+ALTER TABLE "app_users" DROP CONSTRAINT "app_users_default_target_language_check";--> statement-breakpoint
+ALTER TABLE "app_users" ADD CONSTRAINT "app_users_default_target_language_check" CHECK ("app_users"."default_target_language" in ('en', 'ja', 'ko', 'fr', 'es', 'zh-CN', 'de'));

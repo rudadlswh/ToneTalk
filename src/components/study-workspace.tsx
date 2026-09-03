@@ -88,6 +88,7 @@ export function StudyWorkspace() {
   }, [reloadKey]);
 
   const current = items[0];
+  const currentSource = current ? getLanguage(current.sourceLanguage) : null;
   const dailyPercent = useMemo(() => {
     if (!summary) return 0;
     return Math.min(100, Math.round((summary.reviewedToday / summary.dailyGoal) * 100));
@@ -187,7 +188,7 @@ export function StudyWorkspace() {
           </div>
           <article className={`study-card tone-${current.tone} ${revealed ? "is-revealed" : ""}`}>
             <div className="study-card-meta">
-              <span className="language-pair">🇺🇸 English <span>→</span> {getLanguage(current.targetLanguage)?.flag} {getLanguage(current.targetLanguage)?.name}</span>
+              <span className="language-pair">{currentSource?.flag} {currentSource?.name ?? current.sourceLanguage} <span>→</span> {getLanguage(current.targetLanguage)?.flag} {getLanguage(current.targetLanguage)?.name}</span>
               <span className="tone-badge">{toneLabels[current.tone]}</span>
             </div>
             <div className="study-question">

@@ -6,7 +6,13 @@ import {
   tones,
   type TranslationVariant,
 } from "@/lib/translation-contract";
-import { getLanguage, type TargetLanguage } from "@/lib/languages";
+import {
+  getLanguage,
+  languageCodes,
+  type LanguageCode,
+  type SourceLanguage,
+  type TargetLanguage,
+} from "@/lib/languages";
 import { getEnv } from "@/server/env";
 
 type OllamaChatResponse = {
@@ -16,18 +22,26 @@ type OllamaChatResponse = {
 
 export class OllamaUnavailableError extends Error {}
 export class OllamaOutputError extends Error {}
+export class SameLanguageError extends Error {}
 
 function buildPrompt(
   sourceText: string,
+  sourceLanguage: SourceLanguage,
   targetLanguage: TargetLanguage,
   retry: boolean,
 ) {
   const target = getLanguage(targetLanguage);
   if (!target) throw new Error("Unsupported target language");
+  const source = sourceLanguage === "auto" ? null : getLanguage(sourceLanguage);
+  const sourceInstruction = source
+    ? `The source language is ${source.name} (${source.nativeName}), code ${source.code}.`
+    : `Detect the source language and return exactly one of these codes: ${languageCodes.join(", ")}.`;
 
-  return `Translate this English sentence into natural ${target.name} (${target.nativeName}).
+  return `${sourceInstruction}
+Translate the source sentence into natural ${target.name} (${target.nativeName}).
 
-All translatedText values MUST be written in ${target.name}, never English.
+Set sourceLanguage to the detected or provided source language code.
+All translation values MUST be written in ${target.name}.
 Do not reverse who is speaking or who performs the action. Preserve the exact meaning.
 Return exactly five results in this order: ${tones.join(", ")}.
 
@@ -38,9 +52,9 @@ Tone definitions:
 - slang: natural colloquial speech used by close peers; avoid offensive language
 - written: clear language appropriate for an email or written note
 
-Rules: preserve meaning, tense, subject, negation, and certainty. Each tone should sound different. Return JSON only.${retry ? " A previous answer was invalid: do not copy the English source and check every result is in the target language." : ""}
+Rules: preserve meaning, tense, subject, negation, and certainty. Each tone should sound different. Return JSON only.${retry ? " A previous answer was invalid: check the sourceLanguage code and ensure every result is in the target language." : ""}
 
-Use exactly this JSON shape: {"casual":"...","polite":"...","formal":"...","slang":"...","written":"..."}
+Use exactly this JSON shape: {"sourceLanguage":"en","casual":"...","polite":"...","formal":"...","slang":"...","written":"..."}
 
 Source sentence:
 ${JSON.stringify(sourceText)}`;
@@ -48,6 +62,7 @@ ${JSON.stringify(sourceText)}`;
 
 async function callOllama(
   sourceText: string,
+  sourceLanguage: SourceLanguage,
   targetLanguage: TargetLanguage,
   retry: boolean,
 ): Promise<OllamaChatResponse> {
@@ -73,7 +88,15 @@ async function callOllama(
             content:
               "You are a meticulous multilingual language coach. Follow the JSON schema exactly.",
           },
-          { role: "user", content: buildPrompt(sourceText, targetLanguage, retry) },
+          {
+            role: "user",
+            content: buildPrompt(
+              sourceText,
+              sourceLanguage,
+              targetLanguage,
+              retry,
+            ),
+          },
         ],
       }),
     });
@@ -96,9 +119,10 @@ async function callOllama(
 
 export async function generateTranslation(
   sourceText: string,
+  sourceLanguage: SourceLanguage,
   targetLanguage: TargetLanguage,
 ): Promise<{
-  sourceLanguage: string;
+  sourceLanguage: LanguageCode;
   variants: TranslationVariant[];
   latencyMs: number;
 }> {
@@ -107,24 +131,40 @@ export async function generateTranslation(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const response = await callOllama(sourceText, targetLanguage, attempt > 0);
+      const response = await callOllama(
+        sourceText,
+        sourceLanguage,
+        targetLanguage,
+        attempt > 0,
+      );
       if (!response.message?.content) {
         throw new OllamaOutputError("Ollama returned an empty response");
       }
 
       const parsedJson = JSON.parse(response.message.content) as unknown;
       const parsed = ollamaTranslationSchema.parse(parsedJson);
+      if (sourceLanguage !== "auto" && parsed.sourceLanguage !== sourceLanguage) {
+        throw new OllamaOutputError("The model returned the wrong source language");
+      }
+      if (parsed.sourceLanguage === targetLanguage) {
+        throw new SameLanguageError("Source and target languages are identical");
+      }
       const variants = normalizeVariants(parsed);
       if (!variants.every((variant) => looksLikeTargetLanguage(variant.translatedText, sourceText, targetLanguage))) {
         throw new OllamaOutputError("The model copied the source or used the wrong language");
       }
       return {
-        sourceLanguage: "en",
+        sourceLanguage: parsed.sourceLanguage,
         variants,
         latencyMs: Date.now() - startedAt,
       };
     } catch (error) {
-      if (error instanceof OllamaUnavailableError) throw error;
+      if (
+        error instanceof OllamaUnavailableError ||
+        error instanceof SameLanguageError
+      ) {
+        throw error;
+      }
       lastError = error;
       console.warn("ollama_output_invalid", {
         attempt: attempt + 1,
