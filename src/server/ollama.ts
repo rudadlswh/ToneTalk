@@ -24,6 +24,28 @@ export class OllamaUnavailableError extends Error {}
 export class OllamaOutputError extends Error {}
 export class SameLanguageError extends Error {}
 
+function buildOllamaHeaders(includeJsonContentType = false) {
+  const env = getEnv();
+  const headers = new Headers({
+    "ngrok-skip-browser-warning": "1",
+  });
+
+  if (includeJsonContentType) headers.set("Content-Type", "application/json");
+  if (env.OLLAMA_BASIC_AUTH_USERNAME && env.OLLAMA_BASIC_AUTH_PASSWORD) {
+    const credentials = Buffer.from(
+      `${env.OLLAMA_BASIC_AUTH_USERNAME}:${env.OLLAMA_BASIC_AUTH_PASSWORD}`,
+      "utf8",
+    ).toString("base64");
+    headers.set("Authorization", `Basic ${credentials}`);
+  }
+
+  return headers;
+}
+
+function buildOllamaUrl(path: string) {
+  return new URL(path, getEnv().OLLAMA_BASE_URL).toString();
+}
+
 function buildPrompt(
   sourceText: string,
   sourceLanguage: SourceLanguage,
@@ -41,7 +63,7 @@ function buildPrompt(
 Translate the source sentence into natural ${target.name} (${target.nativeName}).
 
 Set sourceLanguage to the detected or provided source language code.
-All translation values MUST be written in ${target.name}.
+Every translatedText value MUST be written in ${target.name}.
 Do not reverse who is speaking or who performs the action. Preserve the exact meaning.
 Return exactly five results in this order: ${tones.join(", ")}.
 
@@ -52,9 +74,15 @@ Tone definitions:
 - slang: natural colloquial speech used by close peers; avoid offensive language
 - written: clear language appropriate for an email or written note
 
-Rules: preserve meaning, tense, subject, negation, and certainty. Each tone should sound different. Return JSON only.${retry ? " A previous answer was invalid: check the sourceLanguage code and ensure every result is in the target language." : ""}
+Pronunciation rules for every result:
+- romanization: write the actual spoken reading of translatedText using Latin letters only. Do not translate it, use IPA symbols, or copy Hangul, Kana, Hanzi, or Kanji.
+- hangulPronunciation: write a natural Korean Hangul approximation of the actual spoken reading. Use Hangul, spaces, numbers, and punctuation only; never mix in Latin letters, Kana, Hanzi, or Kanji.
+- Pronounce each word as used in the complete sentence. For Japanese Kanji and Chinese Hanzi, use the contextually correct word reading instead of guessing from individual characters.
+- Return both pronunciation values even when the target language already uses Latin letters or Hangul.
 
-Use exactly this JSON shape: {"sourceLanguage":"en","casual":"...","polite":"...","formal":"...","slang":"...","written":"..."}
+Rules: preserve meaning, tense, subject, negation, and certainty. Each tone should sound different. Return JSON only.${retry ? " A previous answer was invalid: check every nested key, the sourceLanguage code, the target language, and both pronunciation formats." : ""}
+
+Use exactly this JSON shape: {"sourceLanguage":"en","casual":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."},"polite":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."},"formal":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."},"slang":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."},"written":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."}}
 
 Source sentence:
 ${JSON.stringify(sourceText)}`;
@@ -71,9 +99,9 @@ async function callOllama(
   const timeout = setTimeout(() => controller.abort(), env.OLLAMA_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${env.OLLAMA_BASE_URL}/api/chat`, {
+    const response = await fetch(buildOllamaUrl("/api/chat"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: buildOllamaHeaders(true),
       cache: "no-store",
       signal: controller.signal,
       body: JSON.stringify({
@@ -81,7 +109,7 @@ async function callOllama(
         stream: false,
         format: "json",
         keep_alive: "10m",
-        options: { temperature: 0, num_predict: 800 },
+        options: { temperature: 0, num_predict: 1600 },
         messages: [
           {
             role: "system",
@@ -194,7 +222,8 @@ function looksLikeTargetLanguage(
 
 export async function checkOllama() {
   const env = getEnv();
-  const response = await fetch(`${env.OLLAMA_BASE_URL}/api/tags`, {
+  const response = await fetch(buildOllamaUrl("/api/tags"), {
+    headers: buildOllamaHeaders(),
     cache: "no-store",
     signal: AbortSignal.timeout(5_000),
   });

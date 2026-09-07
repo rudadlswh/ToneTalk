@@ -9,6 +9,7 @@
 - 영어·일본어·한국어·프랑스어·스페인어·중국어·독일어 입력과 자동 언어 감지
 - 입력 언어를 제외한 6개 언어 중 하나를 번역 언어로 선택
 - Casual, Polite, Formal, Slang, Written 5개 톤 동시 생성
+- 모든 톤 결과의 로마자·한글 발음 동시 생성
 - 구조화 모델 출력 검증과 잘못된 출력 1회 자동 재시도
 - 한국어·일본어·중국어 결과의 대상 문자 검증
 - 톤별 복사, 저장, 저장 취소
@@ -133,7 +134,7 @@ translation_sessions
 translation_variants
   id PK
   session_id FK -> translation_sessions.id
-  tone, translated_text, transliteration
+  tone, translated_text, transliteration, hangul_pronunciation
   context_note, warning, position, created_at
   UNIQUE(session_id, tone)
 
@@ -207,6 +208,7 @@ study_review_events
 - 선택한 입력 언어별 500자 원문 입력과 예문
 - 로딩 스켈레톤, 오류 배너
 - 5개 톤 결과 카드
+- 번역문 아래 로마자·한글 발음 기본 표시
 - 복사·저장·저장 취소
 - 언어별 번역 음성 재생·중지
 - 데스크톱 입력/결과 2열, 모바일 단일 열
@@ -216,6 +218,7 @@ study_review_events
 - 원문·번역문 검색
 - 대상 언어 필터
 - 저장 카드 목록
+- 저장한 번역의 로마자·한글 발음 표시
 - 복사·삭제와 빈 상태
 - 저장한 번역 음성 재생·중지
 
@@ -223,6 +226,7 @@ study_review_events
 
 - 저장 표현의 원문을 먼저 보여주는 플래시카드
 - 정답 공개 후 `다시·어려움·좋음·쉬움` 자기 평가
+- 정답의 로마자·한글 발음 표시
 - 정답 번역 음성 재생·중지
 - 평가에 따른 다음 복습 일정 자동 계산
 - 오늘의 목표, 복습 대기 수, 익힌 표현, 연속 학습일
@@ -288,7 +292,7 @@ curl http://localhost:3000/api/health
 1. 단일 Node 프로세스용 요청 제한을 Redis 기반 분산 제한으로 교체
 2. 이메일 인증 도입 후 `owner_id`를 실제 사용자 세션으로 연결
 3. 번역 평가셋을 추가해 모델·프롬프트 변경 시 의미 보존 회귀 테스트
-4. 발음 표기는 DB와 UI 필드만 준비되어 있으며, 현재 모델 지연을 줄이기 위해 생성하지 않음
+4. 로마자·한글 발음은 로컬 LLM이 생성하는 학습 보조 표기이며 실제 발음과 차이가 있을 수 있음
 5. 저장·복습 목록을 커서 페이지네이션과 PostgreSQL 다국어 검색 인덱스로 확장
 6. 운영 배포 시 TLS, 비밀 관리, DB 백업, Ollama 네트워크 접근 제어 적용
 7. macOS가 아닌 서버 배포 시 Piper 같은 로컬 TTS 엔진 어댑터 추가

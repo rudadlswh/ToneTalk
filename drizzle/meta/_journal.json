@@ -29,6 +29,13 @@
       "when": 1788399152712,
       "tag": "0003_panoramic_scarlet_spider",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788441589414,
+      "tag": "0004_bouncy_thunderbolt",
+      "breakpoints": true
     }
   ]
 }

@@ -32,6 +32,7 @@ export async function listSavedPhrases(options: {
         ilike(translationSessions.sourceText, pattern),
         ilike(translationVariants.translatedText, pattern),
         ilike(translationVariants.transliteration, pattern),
+        ilike(translationVariants.hangulPronunciation, pattern),
       )!,
     );
   }
@@ -46,6 +47,7 @@ export async function listSavedPhrases(options: {
       tone: translationVariants.tone,
       translatedText: translationVariants.translatedText,
       transliteration: translationVariants.transliteration,
+      hangulPronunciation: translationVariants.hangulPronunciation,
       contextNote: translationVariants.contextNote,
       warning: translationVariants.warning,
       savedAt: savedPhrases.createdAt,

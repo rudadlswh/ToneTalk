@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useSpeech } from "@/hooks/use-speech";
+import { PronunciationGuide } from "@/components/pronunciation-guide";
 import type { TranslationSessionDto } from "@/lib/dto";
 import { getInitialExamples, getRandomExamples } from "@/lib/examples";
 import {
@@ -341,7 +342,10 @@ export function TranslateWorkspace() {
                       </div>
                       <p className="context-note">{variant.contextNote}</p>
                       <p className="translation-text" lang={session.targetLanguage}>{variant.translatedText}</p>
-                      {variant.transliteration && <p className="transliteration">{variant.transliteration}</p>}
+                      <PronunciationGuide
+                        romanization={variant.transliteration}
+                        hangulPronunciation={variant.hangulPronunciation}
+                      />
                       {variant.warning && <p className="tone-warning">{variant.warning}</p>}
                     </article>
                   );

@@ -7,8 +7,12 @@ import {
 } from "@/lib/translation-contract";
 
 const validOutput = Object.fromEntries(
-  tones.map((tone) => [tone, `${tone} translation`]),
-) as Record<(typeof tones)[number], string> & { sourceLanguage: "en" };
+  tones.map((tone) => [tone, {
+    translatedText: `${tone} translation`,
+    romanization: `${tone} pronunciation`,
+    hangulPronunciation: "발음 표기",
+  }]),
+) as Record<string, unknown>;
 validOutput.sourceLanguage = "en";
 
 describe("translation contract", () => {
@@ -55,12 +59,39 @@ describe("translation contract", () => {
 
   it("validates and preserves the canonical tone order", () => {
     const parsed = ollamaTranslationSchema.parse(validOutput);
-    expect(normalizeVariants(parsed).map((variant) => variant.tone)).toEqual(tones);
+    const variants = normalizeVariants(parsed);
+    expect(variants.map((variant) => variant.tone)).toEqual(tones);
+    expect(variants[0]).toMatchObject({
+      transliteration: "casual pronunciation",
+      hangulPronunciation: "발음 표기",
+    });
   });
 
   it("rejects an output with a missing tone", () => {
-    const missingTone: Partial<typeof validOutput> = { ...validOutput };
+    const missingTone = { ...validOutput };
     delete missingTone.written;
     expect(() => ollamaTranslationSchema.parse(missingTone)).toThrow();
+  });
+
+  it("rejects pronunciation values written in the wrong scripts", () => {
+    expect(() => ollamaTranslationSchema.parse({
+      ...validOutput,
+      casual: {
+        translatedText: "casual translation",
+        romanization: "캐주얼",
+        hangulPronunciation: "casual",
+      },
+    })).toThrow();
+
+    const sanitized = ollamaTranslationSchema.parse({
+      ...validOutput,
+      formal: {
+        translatedText: "誠にありがとうございます。",
+        romanization: "誠に arigatou gozaimasu",
+        hangulPronunciation: "마코토니 아리가とう고자이마스",
+      },
+    });
+    expect(sanitized.formal.romanization).toBe("arigatou gozaimasu");
+    expect(sanitized.formal.hangulPronunciation).toBe("마코토니 아리가 고자이마스");
   });
 });

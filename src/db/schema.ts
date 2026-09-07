@@ -3,14 +3,22 @@ import {
   check,
   index,
   integer,
-  pgTable,
+  pgSchema,
   text,
   timestamp,
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 
-export const appUsers = pgTable(
+const databaseSchemaName = process.env.DATABASE_SCHEMA ?? "tonetalk_dev";
+
+if (databaseSchemaName !== "tonetalk_dev" && databaseSchemaName !== "tonetalk_prod") {
+  throw new Error("DATABASE_SCHEMA must be tonetalk_dev or tonetalk_prod");
+}
+
+const databaseSchema = pgSchema(databaseSchemaName);
+
+export const appUsers = databaseSchema.table(
   "app_users",
   {
     id: varchar("id", { length: 64 }).primaryKey(),
@@ -39,7 +47,7 @@ export const appUsers = pgTable(
   ],
 );
 
-export const translationSessions = pgTable(
+export const translationSessions = databaseSchema.table(
   "translation_sessions",
   {
     id: varchar("id", { length: 36 }).primaryKey(),
@@ -64,7 +72,7 @@ export const translationSessions = pgTable(
   ],
 );
 
-export const translationVariants = pgTable(
+export const translationVariants = databaseSchema.table(
   "translation_variants",
   {
     id: varchar("id", { length: 36 }).primaryKey(),
@@ -74,6 +82,7 @@ export const translationVariants = pgTable(
     tone: varchar("tone", { length: 20 }).notNull(),
     translatedText: text("translated_text").notNull(),
     transliteration: text("transliteration"),
+    hangulPronunciation: text("hangul_pronunciation"),
     contextNote: varchar("context_note", { length: 240 }).notNull(),
     warning: varchar("warning", { length: 240 }),
     position: integer("position").notNull(),
@@ -93,7 +102,7 @@ export const translationVariants = pgTable(
   ],
 );
 
-export const savedPhrases = pgTable(
+export const savedPhrases = databaseSchema.table(
   "saved_phrases",
   {
     id: varchar("id", { length: 36 }).primaryKey(),
@@ -119,7 +128,7 @@ export const savedPhrases = pgTable(
   ],
 );
 
-export const studyProgress = pgTable(
+export const studyProgress = databaseSchema.table(
   "study_progress",
   {
     id: varchar("id", { length: 36 }).primaryKey(),
@@ -157,7 +166,7 @@ export const studyProgress = pgTable(
   ],
 );
 
-export const studyReviewEvents = pgTable(
+export const studyReviewEvents = databaseSchema.table(
   "study_review_events",
   {
     id: varchar("id", { length: 36 }).primaryKey(),

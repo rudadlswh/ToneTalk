@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Check, Clipboard, LoaderCircle, Search, Square, Trash2, Volume2, X } from "lucide-react";
 import { useSpeech } from "@/hooks/use-speech";
+import { PronunciationGuide } from "@/components/pronunciation-guide";
 import { readJson } from "@/lib/api";
 import type { SavedPhraseDto } from "@/lib/dto";
 import { getLanguage, languages } from "@/lib/languages";
@@ -150,7 +151,10 @@ export function SavedWorkspace() {
                   </div>
                   <p className="saved-source">{item.sourceText}</p>
                   <p className="translation-text" lang={item.targetLanguage}>{item.translatedText}</p>
-                  {item.transliteration && <p className="transliteration">{item.transliteration}</p>}
+                  <PronunciationGuide
+                    romanization={item.transliteration}
+                    hangulPronunciation={item.hangulPronunciation}
+                  />
                   <p className="context-note">{item.contextNote}</p>
                 </div>
                 <div className="saved-card-actions">

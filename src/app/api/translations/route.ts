@@ -10,6 +10,7 @@ import { consumeRateLimit } from "@/server/rate-limit";
 import { createTranslation } from "@/server/translations";
 
 export const runtime = "nodejs";
+export const maxDuration = 180;
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();

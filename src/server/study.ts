@@ -56,6 +56,7 @@ export async function listDueStudyItems(limit = 20, now = new Date()) {
       tone: translationVariants.tone,
       translatedText: translationVariants.translatedText,
       transliteration: translationVariants.transliteration,
+      hangulPronunciation: translationVariants.hangulPronunciation,
       contextNote: translationVariants.contextNote,
       warning: translationVariants.warning,
       savedAt: savedPhrases.createdAt,

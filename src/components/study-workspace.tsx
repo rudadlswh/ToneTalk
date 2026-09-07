@@ -16,6 +16,7 @@ import {
   Volume2,
 } from "lucide-react";
 import { useSpeech } from "@/hooks/use-speech";
+import { PronunciationGuide } from "@/components/pronunciation-guide";
 import { readJson } from "@/lib/api";
 import type {
   StudyItemDto,
@@ -225,7 +226,10 @@ export function StudyWorkspace() {
                   </button>
                 </div>
                 <p className="translation-text" lang={current.targetLanguage}>{current.translatedText}</p>
-                {current.transliteration && <p className="transliteration">{current.transliteration}</p>}
+                <PronunciationGuide
+                  romanization={current.transliteration}
+                  hangulPronunciation={current.hangulPronunciation}
+                />
                 <p className="context-note">{current.contextNote}</p>
                 {current.warning && <p className="tone-warning">{current.warning}</p>}
               </div>

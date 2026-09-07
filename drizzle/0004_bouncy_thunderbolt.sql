@@ -1,0 +1,1 @@
+ALTER TABLE "translation_variants" ADD COLUMN "hangul_pronunciation" text;

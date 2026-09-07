@@ -6,6 +6,7 @@ export type TranslationVariantDto = {
   tone: Tone;
   translatedText: string;
   transliteration: string | null;
+  hangulPronunciation: string | null;
   contextNote: string;
   warning: string | null;
   savedPhraseId: string | null;
@@ -31,6 +32,7 @@ export type SavedPhraseDto = {
   tone: Tone;
   translatedText: string;
   transliteration: string | null;
+  hangulPronunciation: string | null;
   contextNote: string;
   warning: string | null;
   savedAt: string;

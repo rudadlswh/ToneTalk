@@ -130,7 +130,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .card-actions { display: flex; gap: 5px; }
 .context-note { margin: 11px 0 7px; color: #8a8c99; font-size: 10px; line-height: 1.45; }
 .translation-text { margin: 0; color: var(--ink); font-size: clamp(17px, 1.6vw, 22px); font-weight: 820; line-height: 1.42; letter-spacing: -.025em; word-break: keep-all; overflow-wrap: anywhere; }
-.transliteration { margin: 7px 0 0; color: #7c7f8e; font-size: 11px; line-height: 1.5; }
+.pronunciation-guide { margin-top: 10px; display: grid; gap: 5px; }
+.pronunciation-guide p { margin: 0; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 8px; align-items: baseline; color: #707382; font-size: 11px; line-height: 1.5; }
+.pronunciation-guide p > span:first-child { color: #9a98a7; font-size: 8px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.pronunciation-guide p > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .tone-warning { margin: 10px 0 0; padding: 7px 9px; color: #8a5b00; background: #fff8e7; border-radius: 8px; font-size: 10px; line-height: 1.5; }
 .tone-skeleton { height: 190px; border-radius: 16px; background: linear-gradient(100deg, #f1eff4 20%, #f8f7fa 35%, #f1eff4 50%); background-size: 260% 100%; animation: shimmer 1.3s infinite linear; }
 .tone-skeleton:last-child { grid-column: 1 / -1; height: 165px; }

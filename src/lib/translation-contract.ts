@@ -41,19 +41,44 @@ export const translationVariantSchema = z.object({
   tone: z.enum(tones),
   translatedText: z.string().trim().min(1).max(1200),
   transliteration: z.string().trim().max(1200).nullable(),
+  hangulPronunciation: z.string().trim().max(1200).nullable(),
   contextNote: z.string().trim().min(1).max(240),
   warning: z.string().trim().max(240).nullable(),
 });
 
 const modelTextSchema = z.string().trim().min(1).max(1200);
+const forbiddenAsianScriptPattern = /[\u1100-\u11ff\u3040-\u30ff\u3130-\u318f\u3400-\u9fff\uac00-\ud7af]/gu;
+const hangulPronunciationAllowedPattern = /[^\u1100-\u11ff\u3130-\u318f\uac00-\ud7af0-9\s.,!?"'()\-:;·…]/gu;
+
+const romanizationSchema = modelTextSchema
+  .transform((value) => value.replace(forbiddenAsianScriptPattern, " ").replace(/\s+/g, " ").trim())
+  .pipe(modelTextSchema)
+  .refine(
+  (value) =>
+    /[a-z]/iu.test(value),
+  "로마자 발음에는 한중일 문자를 사용할 수 없습니다.",
+);
+const hangulPronunciationSchema = modelTextSchema
+  .transform((value) => value.replace(hangulPronunciationAllowedPattern, " ").replace(/\s+/g, " ").trim())
+  .pipe(modelTextSchema)
+  .refine(
+  (value) =>
+    /[\uac00-\ud7af]/u.test(value),
+  "한글 발음에는 한글과 문장부호만 사용할 수 있습니다.",
+);
+const ollamaToneSchema = z.object({
+  translatedText: modelTextSchema,
+  romanization: romanizationSchema,
+  hangulPronunciation: hangulPronunciationSchema,
+});
 
 export const ollamaTranslationSchema = z.object({
   sourceLanguage: z.enum(languageCodes),
-  casual: modelTextSchema,
-  polite: modelTextSchema,
-  formal: modelTextSchema,
-  slang: modelTextSchema,
-  written: modelTextSchema,
+  casual: ollamaToneSchema,
+  polite: ollamaToneSchema,
+  formal: ollamaToneSchema,
+  slang: ollamaToneSchema,
+  written: ollamaToneSchema,
 });
 
 export type TranslationVariant = z.infer<typeof translationVariantSchema>;
@@ -63,8 +88,9 @@ export function normalizeVariants(
 ): TranslationVariant[] {
   return tones.map((tone) => ({
     tone,
-    translatedText: output[tone],
-    transliteration: null,
+    translatedText: output[tone].translatedText,
+    transliteration: output[tone].romanization,
+    hangulPronunciation: output[tone].hangulPronunciation,
     contextNote: contextNotes[tone],
     warning:
       tone === "slang"
