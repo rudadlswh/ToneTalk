@@ -1,5 +1,6 @@
 import "server-only";
 
+import { attachDatabasePool } from "@vercel/functions";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { getEnv } from "@/server/env";
@@ -20,10 +21,17 @@ const pool = new Pool({
     ca: SUPABASE_ROOT_CA,
     rejectUnauthorized: true,
   },
-  max: 10,
-  idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  // Vercel instances can scale horizontally, so keep the per-instance pool
+  // deliberately small and let Supavisor handle cross-instance pooling.
+  max: 2,
+  idleTimeoutMillis: 5_000,
+  connectionTimeoutMillis: 15_000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 5_000,
+  allowExitOnIdle: true,
 });
+
+attachDatabasePool(pool);
 
 export const db = drizzle({ client: pool, schema });
 export { pool };
