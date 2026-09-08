@@ -10,7 +10,9 @@
 - 입력 언어를 제외한 6개 언어 중 하나를 번역 언어로 선택
 - Casual, Polite, Formal, Slang, Written 5개 톤 동시 생성
 - 모든 톤 결과의 로마자·한글 발음 동시 생성
-- 구조화 모델 출력 검증과 잘못된 출력 1회 자동 재시도
+- JSON Schema 기반 출력 제한·검증(숨은 자동 재시도 없음)
+- PostgreSQL 기반 반복 번역 캐시와 인스턴스 간 단일 추론 제한
+- AI 요청 전체 150초 제한과 취소 전파
 - 한국어·일본어·중국어 결과의 대상 문자 검증
 - 톤별 복사, 저장, 저장 취소
 - 번역 결과·저장 표현·복습 정답 TTS 재생 및 중지
@@ -36,7 +38,7 @@
 | LLM | Ollama, `qwen2.5:14b` | 설치된 작은 모델의 의미 보존 실패를 확인해 정확도를 우선 |
 | 테스트 | Vitest | 핵심 도메인 계약을 빠르게 회귀 검증 |
 
-14B 모델은 콜드 스타트와 하드웨어에 따라 20~90초가 걸릴 수 있습니다. 빠른 개발 확인은 `.env.local`의 `OLLAMA_MODEL`을 `qwen2.5-coder:3b`로 바꿀 수 있지만 번역 정확도는 낮아집니다.
+4700U/16GB PC의 짧은 문장 실측은 14B warm 약 83초, cold 약 136초였습니다. 작은 모델은 빨랐지만 발음·어투 오류가 있어 자동 교체하지 않았습니다. [성능 개선 내역·실측·PC 설정](docs/PERFORMANCE.md)을 참고하세요.
 
 ## 시스템 아키텍처
 
@@ -264,6 +266,8 @@ docker compose up -d postgres
 이미 PostgreSQL이 있다면 `DATABASE_URL`에 별도 DB를 지정합니다.
 
 ### 3. 설치와 마이그레이션
+
+현재 Supabase의 `tonetalk_dev`/`tonetalk_prod`를 사용한다면 이전 `public` 기반 Drizzle 이력을 무작정 재실행하지 마세요. 이번 추가 테이블 SQL 및 적용 상태는 [성능 문서](docs/PERFORMANCE.md)의 DB 변경 항목에 기록했습니다. 아래는 이전 로컬 DB 초기화 흐름입니다.
 
 ```bash
 pnpm install
