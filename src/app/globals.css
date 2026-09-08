@@ -57,6 +57,58 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .status-dot { flex: 0 0 auto; width: 8px; height: 8px; margin-top: 4px; background: #34b36b; border-radius: 50%; box-shadow: 0 0 0 4px rgba(52,179,107,.12); }
 .main-content { min-width: 0; width: 100%; margin-left: 232px; }
 .bottom-nav { display: none; }
+.lyrics-grid { display: grid; grid-template-columns: minmax(280px, .65fr) minmax(0, 1.35fr); gap: 22px; align-items: start; }
+.lyrics-mark { display: grid; place-items: center; width: 58px; height: 58px; background: #eee9ff; color: var(--violet); border-radius: 18px; }
+.lyrics-language-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.lyrics-language-controls label { display: grid; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.lyrics-language-controls select { min-width: 0; width: 100%; padding: 11px 8px; border: 1px solid var(--line); border-radius: 10px; background: #fbfafc; color: var(--ink); }
+.lyrics-composer textarea { display: block; width: 100%; min-height: 310px; margin-top: 12px; padding: 16px; resize: vertical; border: 1px solid var(--line); border-radius: 14px; background: #fbfafc; color: var(--ink); font: inherit; font-size: 14px; line-height: 1.9; }
+.lyrics-input-meta { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; font-size: 11px; color: var(--muted); }
+.lyrics-input-meta button { padding: 7px 10px; border: 0; border-radius: 8px; color: var(--violet); background: #f0ebff; cursor: pointer; }
+.lyrics-note { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.lyrics-composer .primary-button { margin-top: 18px; }
+.lyrics-results { padding: 24px; border-radius: 24px; }
+.lyrics-result-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.lyrics-result-header h2 { font-size: 20px; margin: 0; }
+.lyrics-display-options { display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0 10px; font-size: 12px; }
+.lyrics-display-options label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.lyrics-display-options input { accent-color: var(--violet); width: 16px; height: 16px; }
+.lyrics-empty { text-align: center; padding: 70px 12px; color: var(--muted); }
+.lyrics-empty svg { color: var(--violet); }
+.lyrics-empty h3 { font-size: 17px; color: var(--ink); }
+.lyrics-empty p { font-size: 13px; }
+.lyrics-progress { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 750; color: var(--violet); margin-top: 20px; }
+.lyric-line { padding: 24px; margin-top: 22px; background: #fafbf7; border: 1px solid #e6e8e0; border-radius: 18px; overflow-wrap: anywhere; }
+.lyric-line-heading { display: flex; justify-content: space-between; align-items: center; min-height: 27px; color: var(--muted); font-size: 10px; }
+.lyric-reading-hero { padding: 22px 0 28px; text-align: center; }
+.lyric-romanization { margin: 0 0 20px; color: #92978f; font-size: 12px; font-weight: 800; letter-spacing: .16em; line-height: 1.9; text-transform: uppercase; }
+.lyric-original { margin: 12px 0 24px; font-size: clamp(25px, 2.5vw, 38px); font-weight: 850; line-height: 1.9; color: #181d17; white-space: pre-wrap; }
+.lyric-original ruby { ruby-align: center; ruby-position: over; }
+.lyric-original rt { color: #858d80; font-size: .36em; font-weight: 500; letter-spacing: .03em; }
+.lyric-translation { color: #232b22; font-size: clamp(19px, 1.6vw, 25px); font-weight: 800; line-height: 1.8; margin: 14px 0; }
+.lyric-translation > span { background: linear-gradient(transparent 62%, #dce5ec 62%); padding: 0 3px 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.lyric-hangul { margin: 12px 0 0; color: #7d8578; font-size: 16px; line-height: 1.8; }
+.lyric-explanation h3 { margin: 0 0 12px; color: #333b30; font-size: 13px; }
+.lyric-explanation h3 > span { margin-left: 7px; color: #94998f; font-size: 10px; font-weight: 500; }
+.lyric-vocabulary { margin: 0; border-top: 3px solid #323d2f; }
+.lyric-vocabulary-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 16px; padding: 18px 0; border-bottom: 1px solid #bbc2b6; align-items: start; }
+.lyric-vocabulary dt { display: flex; align-items: baseline; gap: 6px 10px; flex-wrap: wrap; }
+.lyric-vocabulary dt strong { color: #1c251a; font-size: 23px; }
+.word-reading, .word-hangul { color: #7e8878; font-size: 12px; }
+.word-hangul { flex-basis: 100%; }
+.lyric-vocabulary dd { margin: 0; text-align: right; }
+.lyric-vocabulary dd strong { color: #242d21; font-size: 17px; line-height: 1.5; }
+.lyric-vocabulary dd p { color: #77806f; font-size: 12px; line-height: 1.7; margin: 6px 0 0; }
+.lyric-nuance { margin-top: 24px; padding: 18px; border-radius: 12px; background: #edf1e8; }
+.lyric-nuance p { margin: 0; font-size: 13px; line-height: 1.9; color: #526047; }
+.lyric-detail-action { margin-top: 10px; }
+.lyric-detail-action button { min-height: 42px; width: 100%; padding: 10px; border: 1px solid #ccd3c5; border-radius: 10px; color: #526645; background: #f0f4eb; font-size: 12px; font-weight: 750; cursor: pointer; }
+.lyric-detail-action button:disabled { opacity: .5; cursor: not-allowed; }
+.lyric-detail-action .lyrics-note svg { vertical-align: middle; }
+.lyrics-stanza-break { height: 24px; }
+@media (max-width: 1000px) { .lyrics-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .lyrics-results { padding: 18px; } .lyrics-composer textarea { min-height: 230px; } }
+@media (max-width: 600px) { .lyric-line { padding: 16px; } .lyric-vocabulary-row { gap: 12px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .lyric-vocabulary dt strong { font-size: 20px; } .lyric-vocabulary dd strong { font-size: 15px; } }
 
 .page-wrap { width: min(1240px, calc(100% - 64px)); margin: 0 auto; padding: 52px 0 70px; }
 .page-header { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
@@ -294,7 +346,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (max-width: 760px) {
   .side-nav { display: none; }
   .main-content { margin-left: 0; padding-bottom: 78px; }
-  .bottom-nav { position: fixed; z-index: 30; left: 14px; right: 14px; bottom: max(12px, env(safe-area-inset-bottom)); height: 66px; padding: 7px; display: grid; grid-template-columns: repeat(4,1fr); background: rgba(26,28,47,.94); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; box-shadow: 0 15px 40px rgba(20,18,38,.3); backdrop-filter: blur(18px); }
+  .bottom-nav { position: fixed; z-index: 30; left: 14px; right: 14px; bottom: max(12px, env(safe-area-inset-bottom)); height: 66px; padding: 7px; display: grid; grid-template-columns: repeat(5,1fr); background: rgba(26,28,47,.94); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; box-shadow: 0 15px 40px rgba(20,18,38,.3); backdrop-filter: blur(18px); }
   .bottom-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #a9abb8; border-radius: 14px; font-size: 9px; font-weight: 750; text-decoration: none; }
   .bottom-nav-item.is-active { color: white; background: var(--brand); }
   .bottom-nav-item.is-disabled { opacity: .35; }

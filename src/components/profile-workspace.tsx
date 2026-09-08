@@ -34,6 +34,7 @@ export function ProfileWorkspace() {
   const [profile, setProfile] = useState<ProfileDto | null>(null);
   const [stats, setStats] = useState<ProfileStatsDto | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
   const [defaultLanguage, setDefaultLanguage] = useState<TargetLanguage>("ja");
   const [dailyGoal, setDailyGoal] = useState(10);
@@ -49,12 +50,8 @@ export function ProfileWorkspace() {
       setLoading(true);
       setError(null);
       try {
-        const [profileResponse, healthResponse] = await Promise.all([
-          fetch("/api/profile", { cache: "no-store", signal: controller.signal }),
-          fetch("/api/health", { cache: "no-store", signal: controller.signal }),
-        ]);
+        const profileResponse = await fetch("/api/profile", { cache: "no-store", signal: controller.signal });
         const profileData = await readJson<ProfileResponse>(profileResponse);
-        const healthData = (await healthResponse.json()) as HealthResponse;
         setProfile(profileData.profile);
         setStats(profileData.stats);
         setDisplayName(profileData.profile.displayName);
@@ -69,7 +66,6 @@ export function ProfileWorkspace() {
             ),
           ),
         );
-        setHealth(healthData);
       } catch (caught) {
         if (caught instanceof Error && caught.name === "AbortError") return;
         setError(caught instanceof Error ? caught.message : "프로필을 불러오지 못했습니다.");
@@ -78,6 +74,16 @@ export function ProfileWorkspace() {
       }
     };
     void load();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/health", { cache: "no-store", signal: controller.signal })
+      .then((response) => response.json())
+      .then((data: HealthResponse) => { if (!controller.signal.aborted) setHealth(data); })
+      .catch(() => { /* Health failure must not hide editable profile settings. */ })
+      .finally(() => { if (!controller.signal.aborted) setHealthLoading(false); });
     return () => controller.abort();
   }, []);
 
@@ -193,8 +199,8 @@ export function ProfileWorkspace() {
         <aside className="profile-side">
           <section className="system-panel">
             <div className="panel-heading"><div><span className="section-label">LOCAL SYSTEM</span><h2>서비스 상태</h2></div></div>
-            <div className="service-row"><span className="service-icon"><Database size={18} /></span><div><strong>PostgreSQL</strong><small>학습 데이터 저장소</small></div><span className={`service-status ${health?.database ? "is-online" : "is-offline"}`}>{health?.database ? "정상" : "확인 필요"}</span></div>
-            <div className="service-row"><span className="service-icon"><Server size={18} /></span><div><strong>Ollama</strong><small>로컬 번역 모델</small></div><span className={`service-status ${health?.ollama ? "is-online" : "is-offline"}`}>{health?.ollama ? "정상" : "연결 안 됨"}</span></div>
+            <div className="service-row"><span className="service-icon"><Database size={18} /></span><div><strong>PostgreSQL</strong><small>학습 데이터 저장소</small></div><span className={`service-status ${healthLoading ? "" : health?.database ? "is-online" : "is-offline"}`}>{healthLoading ? "확인 중" : health?.database ? "정상" : "확인 필요"}</span></div>
+            <div className="service-row"><span className="service-icon"><Server size={18} /></span><div><strong>Ollama</strong><small>로컬 번역 모델</small></div><span className={`service-status ${healthLoading ? "" : health?.ollama ? "is-online" : "is-offline"}`}>{healthLoading ? "확인 중" : health?.ollama ? "정상" : "연결 안 됨"}</span></div>
           </section>
 
           <section className="privacy-panel">

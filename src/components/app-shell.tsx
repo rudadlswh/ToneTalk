@@ -6,6 +6,7 @@ import {
   BookMarked,
   Brain,
   Languages,
+  Music2,
   Sparkles,
   UserRound,
 } from "lucide-react";
@@ -14,6 +15,7 @@ const navigation = [
   { href: "/", label: "Translate", icon: Languages, enabled: true },
   { href: "/saved", label: "Saved", icon: BookMarked, enabled: true },
   { href: "/study", label: "Study", icon: Brain, enabled: true },
+  { href: "/lyrics", label: "Lyrics", icon: Music2, enabled: true },
   { href: "/profile", label: "Profile", icon: UserRound, enabled: true },
 ];
 

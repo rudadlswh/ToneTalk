@@ -1,0 +1,40 @@
+import { beforeEach, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
+const { write, transaction } = vi.hoisted(() => {
+  const write = vi.fn().mockResolvedValue(undefined);
+  return { write, transaction: vi.fn(async (work: (tx: unknown) => Promise<void>) => work({ insert: () => ({ values: write }) })) };
+});
+vi.mock("@/server/db", () => ({ db: { transaction } }));
+vi.mock("@/server/owner", () => ({ getCurrentOwnerId: async () => "owner" }));
+vi.mock("@/server/env", () => ({ getEnv: () => ({ OLLAMA_MODEL: "model" }) }));
+vi.mock("@/server/inference-limit", () => ({ withInferenceSlot: vi.fn((work: () => Promise<unknown>) => work()) }));
+vi.mock("@/server/ollama", () => ({ generateTranslation: vi.fn() }));
+vi.mock("@/server/translation-cache", () => ({ readTranslationCache: vi.fn(), translationCacheKey: () => "key", writeTranslationCache: vi.fn() }));
+import { createTranslation } from "@/server/translations";
+import { generateTranslation } from "@/server/ollama";
+import { readTranslationCache, writeTranslationCache } from "@/server/translation-cache";
+import { withInferenceSlot } from "@/server/inference-limit";
+import { tones } from "@/lib/translation-contract";
+const generated = { sourceLanguage: "en" as const, latencyMs: 1000, variants: tones.map((tone) => ({ tone, translatedText: "こんにちは", transliteration: "Konnichiwa", hangulPronunciation: "곤니치와", contextNote: "설명", warning: null })) };
+beforeEach(() => { vi.clearAllMocks(); vi.mocked(readTranslationCache).mockReset(); });
+it("bypasses inference admission on hits and never reuses saved phrase IDs", async () => {
+  vi.mocked(readTranslationCache).mockResolvedValue(generated);
+  const a = await createTranslation("Hello", "en", "ja");
+  const b = await createTranslation("Hello", "en", "ja");
+  expect(a.cacheHit).toBe(true);
+  expect(a.latencyMs).toBe(0);
+  expect(a.variants[0].savedPhraseId).toBeNull();
+  expect(a.variants[0].id).not.toBe(b.variants[0].id);
+  expect(generateTranslation).not.toHaveBeenCalled();
+  expect(withInferenceSlot).not.toHaveBeenCalled();
+});
+it("rechecks under the slot, generates once, then caches validated output", async () => {
+  vi.mocked(readTranslationCache).mockResolvedValue(null);
+  vi.mocked(generateTranslation).mockResolvedValue(generated);
+  const result = await createTranslation("Hello", "en", "ja");
+  expect(result.cacheHit).toBe(false);
+  expect(readTranslationCache).toHaveBeenCalledTimes(2);
+  expect(generateTranslation).toHaveBeenCalledTimes(1);
+  expect(writeTranslationCache).toHaveBeenCalledWith("key", generated);
+  expect(write).toHaveBeenCalledTimes(2);
+});

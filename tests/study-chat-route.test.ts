@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
+vi.mock("@/server/inference-limit", () => ({ withInferenceSlot: (work: () => Promise<unknown>) => work(), InferenceBusyError: class extends Error {} }));
 
 vi.mock("@/server/ollama", () => ({
   generateRoleplayReply: vi.fn(),

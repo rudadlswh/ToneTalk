@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bookmark,
   Check,
@@ -48,21 +48,25 @@ export function TranslateWorkspace() {
   const [savingVariantId, setSavingVariantId] = useState<string | null>(null);
   const [visibleExamples, setVisibleExamples] = useState(() => getInitialExamples("auto"));
   const { speakingId, speechError, speak, stop } = useSpeech();
+  const languageTouched = useRef(false);
+  const activeTranslation = useRef<AbortController | null>(null);
+
+  useEffect(() => () => activeTranslation.current?.abort(), []);
 
   useEffect(() => {
     const controller = new AbortController();
     const loadDefaultLanguage = async () => {
       try {
-        const response = await fetch("/api/profile", {
+        const response = await fetch("/api/settings", {
           cache: "no-store",
           signal: controller.signal,
         });
         if (!response.ok) return;
         const data = (await response.json()) as {
-          profile?: { defaultTargetLanguage?: TargetLanguage };
+          settings?: { defaultTargetLanguage?: TargetLanguage };
         };
-        if (data.profile?.defaultTargetLanguage) {
-          setTargetLanguage(data.profile.defaultTargetLanguage);
+        if (!controller.signal.aborted && !languageTouched.current && data.settings?.defaultTargetLanguage) {
+          setTargetLanguage(data.settings.defaultTargetLanguage);
         }
       } catch {
         // The translator remains usable with Japanese as the safe default.
@@ -78,6 +82,8 @@ export function TranslateWorkspace() {
   };
 
   const changeSourceLanguage = (next: SourceLanguage) => {
+    languageTouched.current = true;
+    activeTranslation.current?.abort();
     stop();
     setSourceLanguage(next);
     setVisibleExamples(getInitialExamples(next));
@@ -90,6 +96,8 @@ export function TranslateWorkspace() {
   };
 
   const changeTargetLanguage = (next: TargetLanguage) => {
+    languageTouched.current = true;
+    activeTranslation.current?.abort();
     stop();
     setTargetLanguage(next);
     setSession(null);
@@ -99,21 +107,26 @@ export function TranslateWorkspace() {
   const translate = async () => {
     const cleanText = sourceText.trim();
     if (!cleanText || loading) return;
+    languageTouched.current = true;
+    const controller = new AbortController();
+    activeTranslation.current = controller;
     stop();
     setLoading(true);
     setError(null);
     try {
       const response = await fetch("/api/translations", {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sourceText: cleanText, sourceLanguage, targetLanguage }),
       });
       const data = await readJson<TranslationResponse>(response);
-      setSession(data.session);
+      if (!controller.signal.aborted) setSession(data.session);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "번역에 실패했습니다.");
+      if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "번역에 실패했습니다.");
     } finally {
       setLoading(false);
+      if (activeTranslation.current === controller) activeTranslation.current = null;
     }
   };
 
@@ -306,7 +319,7 @@ export function TranslateWorkspace() {
                   </h2>
                   {sourceLanguage === "auto" && <span className="detected-language">입력 언어 자동 감지됨</span>}
                 </div>
-                <span>{(session.latencyMs / 1000).toFixed(1)}s · {session.model}</span>
+                <span>{session.cacheHit ? "저장된 번역 재사용" : `${(session.latencyMs / 1000).toFixed(1)}s`} · {session.model}</span>
               </div>
               <div className="tone-grid">
                 {session.variants.map((variant) => {

@@ -3,11 +3,18 @@ import { jsonError } from "@/lib/api";
 import { roleplayRequestSchema } from "@/lib/study-practice";
 import { generateRoleplayReply, OllamaOutputError, OllamaUnavailableError } from "@/server/ollama";
 import { consumeRateLimit } from "@/server/rate-limit";
+import { withRequestBudget, requestSignal } from "@/server/request-budget";
+import { withInferenceSlot, InferenceBusyError } from "@/server/inference-limit";
+import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
 
 export async function POST(request: Request) {
+  return withRequestBudget(request, () => handlePost(request));
+}
+
+async function handlePost(request: Request) {
   const requestId = crypto.randomUUID();
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) {
@@ -18,25 +25,16 @@ export async function POST(request: Request) {
   if (!rate.allowed) return jsonError(requestId, 429, "RATE_LIMITED", `${rate.retryAfterSeconds}초 후 다시 시도해 주세요.`, true);
 
   try {
-    // Enforce the limit while reading, including requests without Content-Length.
-    const reader = request.body?.getReader();
-    if (!reader) return jsonError(requestId, 400, "INVALID_BODY", "메시지를 입력해 주세요.");
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > 24_000) {
-        await reader.cancel();
-        return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "대화가 너무 깁니다. 새 대화를 시작해 주세요.");
-      }
-      chunks.push(value);
-    }
-    const input = roleplayRequestSchema.parse(JSON.parse(Buffer.concat(chunks).toString("utf8")));
-    const result = await generateRoleplayReply(input, request.signal);
+    const input = roleplayRequestSchema.parse(await readLimitedJson(request, 24_000));
+    const result = await withInferenceSlot(() => generateRoleplayReply(input, requestSignal() ?? request.signal));
     return Response.json({ ...result, requestId }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "대화가 너무 깁니다. 새 대화를 시작해 주세요.");
+    if (error instanceof InferenceBusyError) {
+      const response = jsonError(requestId, 429, "AI_BUSY", "AI가 다른 요청을 처리 중이에요. 잠시 후 다시 보내 주세요.", true);
+      response.headers.set("Retry-After", "10");
+      return response;
+    }
     if (error instanceof ZodError || error instanceof SyntaxError) return jsonError(requestId, 400, "INVALID_INPUT", "대화 내용과 언어를 확인해 주세요.");
     if (error instanceof OllamaUnavailableError) return jsonError(requestId, 503, "OLLAMA_UNAVAILABLE", "AI 응답을 받지 못했어요. Ollama 연결을 확인하거나 다시 시도해 주세요.", true);
     if (error instanceof OllamaOutputError) return jsonError(requestId, 502, "INVALID_MODEL_OUTPUT", "AI 답변 형식을 정리하지 못했어요. 다시 시도해 주세요.", true);

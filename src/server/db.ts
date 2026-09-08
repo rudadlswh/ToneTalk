@@ -26,6 +26,8 @@ const pool = new Pool({
   max: 2,
   idleTimeoutMillis: 5_000,
   connectionTimeoutMillis: 15_000,
+  statement_timeout: 8_000,
+  query_timeout: 10_000,
   keepAlive: true,
   keepAliveInitialDelayMillis: 5_000,
   allowExitOnIdle: true,

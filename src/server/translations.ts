@@ -12,6 +12,9 @@ import { db } from "@/server/db";
 import { getEnv } from "@/server/env";
 import { generateTranslation } from "@/server/ollama";
 import { getCurrentOwnerId } from "@/server/owner";
+import { withInferenceSlot } from "@/server/inference-limit";
+import { assertRequestActive } from "@/server/request-budget";
+import { readTranslationCache, translationCacheKey, writeTranslationCache } from "@/server/translation-cache";
 
 export async function createTranslation(
   sourceText: string,
@@ -19,12 +22,25 @@ export async function createTranslation(
   targetLanguage: TargetLanguage,
 ): Promise<TranslationSessionDto> {
   const ownerId = await getCurrentOwnerId();
-  const generated = await generateTranslation(
-    sourceText,
-    sourceLanguage,
-    targetLanguage,
-  );
+  const cacheKey = translationCacheKey(ownerId, sourceText, sourceLanguage, targetLanguage);
+  let cacheHit = false;
+  const readCached = async () => {
+    const cached = await readTranslationCache(cacheKey);
+    if (cached) cacheHit = true;
+    return cached;
+  };
+  const generated = await readCached() ?? await withInferenceSlot(async () => {
+    // Recheck after admission: another request may have filled the cache.
+    const cached = await readCached();
+    if (cached) return cached;
+    const fresh = await generateTranslation(sourceText, sourceLanguage, targetLanguage);
+    assertRequestActive();
+    await writeTranslationCache(cacheKey, fresh);
+    return fresh;
+  });
+  assertRequestActive();
   const sessionId = randomUUID();
+  const inferenceLatencyMs = cacheHit ? 0 : generated.latencyMs;
   const createdAt = new Date();
   const model = getEnv().OLLAMA_MODEL;
 
@@ -42,6 +58,7 @@ export async function createTranslation(
   }));
 
   await db.transaction(async (tx) => {
+    assertRequestActive();
     await tx.insert(translationSessions).values({
       id: sessionId,
       ownerId,
@@ -50,10 +67,11 @@ export async function createTranslation(
       targetLanguage,
       status: "complete",
       model,
-      latencyMs: generated.latencyMs,
+      latencyMs: inferenceLatencyMs,
       createdAt,
     });
     await tx.insert(translationVariants).values(variants);
+    assertRequestActive();
   });
 
   return {
@@ -62,7 +80,8 @@ export async function createTranslation(
     sourceLanguage: generated.sourceLanguage,
     targetLanguage,
     model,
-    latencyMs: generated.latencyMs,
+    latencyMs: inferenceLatencyMs,
+    cacheHit,
     createdAt: createdAt.toISOString(),
     variants: variants.map((variant) => ({
       id: variant.id,

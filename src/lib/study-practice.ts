@@ -41,9 +41,17 @@ export function quizOptions(answer: Tone): Tone[] {
   return shuffle([answer, ...shuffle(tones.filter((tone) => tone !== answer)).slice(0, 3)]);
 }
 
+const segmenters = new Map<string, Intl.Segmenter>();
+
 export function puzzleWords(text: string, language: string): string[] {
   // Segment words for Japanese/Chinese too; punctuation stays with its word.
-  const segments = new Intl.Segmenter(language, { granularity: "word" }).segment(text);
+  const locale = languageCodes.find((code) => code === language) ?? "en";
+  let segmenter = segmenters.get(locale);
+  if (!segmenter) {
+    segmenter = new Intl.Segmenter(locale, { granularity: "word" });
+    segmenters.set(locale, segmenter);
+  }
+  const segments = segmenter.segment(text);
   const words: string[] = [];
   let prefix = "";
   for (const part of segments) {

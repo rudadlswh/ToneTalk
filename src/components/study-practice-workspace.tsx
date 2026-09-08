@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, ChevronRight, Layers, LoaderCircle, MessageSquare, RotateCcw, Send, Sparkles, Target } from "lucide-react";
 import { StudyWorkspace } from "@/components/study-workspace";
 import { readJson } from "@/lib/api";
@@ -63,6 +63,7 @@ export function StudyPracticeWorkspace() {
 
 function PhrasePractice({ kind, onAward }: { kind: "quiz" | "puzzle"; onAward: (key: string, points: number) => void }) {
   const [source, setSource] = useState("demo");
+  const [loadedSaved, setLoadedSaved] = useState(false);
   const [saved, setSaved] = useState<PracticePhrase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -71,6 +72,7 @@ function PhrasePractice({ kind, onAward }: { kind: "quiz" | "puzzle"; onAward: (
   const [index, setIndex] = useState(0);
   const [correct, setCorrect] = useState(0);
   useEffect(() => {
+    if (source !== "saved") return;
     const controller = new AbortController();
     const load = async () => {
       setLoading(true);
@@ -78,7 +80,9 @@ function PhrasePractice({ kind, onAward }: { kind: "quiz" | "puzzle"; onAward: (
       try {
         const response = await fetch("/api/saved-phrases?limit=100", { signal: controller.signal, cache: "no-store" });
         const data = await readJson<{ items: SavedPhraseDto[] }>(response);
+        if (controller.signal.aborted) return;
         setSaved(data.items);
+        setLoadedSaved(true);
       } catch (caught) {
         if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "저장 문장을 불러오지 못했어요.");
       } finally {
@@ -87,13 +91,13 @@ function PhrasePractice({ kind, onAward }: { kind: "quiz" | "puzzle"; onAward: (
     };
     void load();
     return () => controller.abort();
-  }, [reload]);
+  }, [reload, source]);
   const all = source === "saved" ? saved : starterPhrases;
-  const eligible = all.filter((item) => {
+  const eligible = useMemo(() => all.filter((item) => {
     if (kind !== "puzzle") return true;
     const length = puzzleWords(item.translatedText, item.targetLanguage).length;
     return length >= 2 && length <= 24;
-  });
+  }), [all, kind]);
   const start = () => { setDeck(shuffle(eligible).slice(0, 5)); setIndex(0); setCorrect(0); };
   const current = deck?.[index];
   return <section className="practice-panel">
@@ -101,7 +105,7 @@ function PhrasePractice({ kind, onAward }: { kind: "quiz" | "puzzle"; onAward: (
       <h3>어떤 문장으로 연습할까요?</h3>
       <div className="practice-source-picker" role="group" aria-label="문제 출처">
         <button aria-pressed={source === "demo"} onClick={() => setSource("demo")}>기본 예문 · 영어</button>
-        <button aria-pressed={source === "saved"} onClick={() => setSource("saved")}>내 저장 문장 {loading ? "…" : `(${saved.length})`}</button>
+        <button aria-pressed={source === "saved"} onClick={() => { if (source !== "saved") setLoading(true); setSource("saved"); }}>내 저장 문장 {loadedSaved ? `(${saved.length})` : source === "saved" && loading ? "…" : ""}</button>
       </div>
       <p>한 번에 최대 5문제. {kind === "quiz" ? "첫 선택이 정답이면 문제당 20 XP를 받아요." : "정답을 보지 않고 완성하면 문제당 25 XP를 받아요."} 같은 문제의 XP는 이번 연습에서 한 번만 지급됩니다.</p>
       {kind === "quiz" && <p className="practice-muted">어투는 상황에 따라 겹칠 수 있어요. 이 퀴즈는 예문 또는 저장된 어투 분류를 기준으로 채점합니다.</p>}

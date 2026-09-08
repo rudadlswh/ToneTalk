@@ -1,0 +1,8 @@
+import type { Metadata } from "next";
+import { LyricsWorkspace } from "@/components/lyrics-workspace";
+
+export const metadata: Metadata = { title: "Lyrics" };
+
+export default function LyricsPage() {
+  return <LyricsWorkspace />;
+}

@@ -13,6 +13,7 @@ export type TranslationVariantDto = {
 };
 
 export type TranslationSessionDto = {
+  cacheHit?: boolean;
   id: string;
   sourceText: string;
   sourceLanguage: LanguageCode;

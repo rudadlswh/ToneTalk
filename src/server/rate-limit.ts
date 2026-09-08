@@ -8,6 +8,15 @@ export function consumeRateLimit(
   windowMs = 60_000,
 ) {
   const now = Date.now();
+  // Best-effort per-instance spam guard. Global AI admission is in PostgreSQL.
+  if (buckets.size >= 1000) {
+    for (const [oldKey, oldBucket] of buckets) {
+      if (oldBucket.resetAt <= now) buckets.delete(oldKey);
+    }
+    if (buckets.size >= 1000 && !buckets.has(key)) {
+      return { allowed: false, remaining: 0, retryAfterSeconds: 60 };
+    }
+  }
   const bucket = buckets.get(key);
 
   if (!bucket || bucket.resetAt <= now) {

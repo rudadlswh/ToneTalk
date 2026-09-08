@@ -3,6 +3,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgSchema,
   text,
   timestamp,
@@ -196,3 +197,17 @@ export const studyReviewEvents = databaseSchema.table(
 
 export type TranslationSessionRow = typeof translationSessions.$inferSelect;
 export type TranslationVariantRow = typeof translationVariants.$inferSelect;
+
+// Server-only runtime data; see supabase/migrations/*_performance_runtime.sql
+// for the additive migration and explicit RLS/revocations in both environments.
+export const inferenceLeases = databaseSchema.table("inference_leases", {
+  id: varchar("id", { length: 40 }).primaryKey(),
+  token: varchar("token", { length: 36 }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+export const translationCache = databaseSchema.table("translation_cache", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (table) => [index("translation_cache_expires_idx").on(table.expiresAt)]);

@@ -19,6 +19,7 @@ const toneLabels: Record<Tone, string> = {
 };
 
 type SavedResponse = { items: SavedPhraseDto[]; totalCount: number; requestId: string };
+const savedDateFormatter = new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric" });
 
 export function SavedWorkspace() {
   const [items, setItems] = useState<SavedPhraseDto[]>([]);
@@ -158,7 +159,7 @@ export function SavedWorkspace() {
                   <p className="context-note">{item.contextNote}</p>
                 </div>
                 <div className="saved-card-actions">
-                  <time dateTime={item.savedAt}>{new Intl.DateTimeFormat("ko-KR", { month: "short", day: "numeric" }).format(new Date(item.savedAt))}</time>
+                  <time dateTime={item.savedAt}>{savedDateFormatter.format(new Date(item.savedAt))}</time>
                   <button
                     type="button"
                     className={speakingId === item.id ? "is-speaking" : ""}

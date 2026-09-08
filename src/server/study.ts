@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm";
 import {
   appUsers,
   savedPhrases,
@@ -31,7 +31,7 @@ function studyDay(date: Date) {
   return studyDayFormatter.format(date);
 }
 
-function calculateStreak(reviewedDays: Set<string>, now: Date) {
+export function calculateStreak(reviewedDays: Set<string>, now: Date) {
   let streak = 0;
   const cursor = new Date(now);
   if (!reviewedDays.has(studyDay(cursor))) {
@@ -112,79 +112,43 @@ export async function getStudySummary(now = new Date()): Promise<StudySummaryDto
   const ownerId = await getCurrentOwnerId();
   const historyStart = new Date(now.getTime() - 370 * 86_400_000);
 
-  const [totalResult, dueResult, masteredResult, profile, events, nextReview] =
-    await Promise.all([
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(savedPhrases)
-        .where(eq(savedPhrases.ownerId, ownerId)),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(savedPhrases)
-        .leftJoin(
-          studyProgress,
-          and(
-            eq(studyProgress.savedPhraseId, savedPhrases.id),
-            eq(studyProgress.ownerId, ownerId),
-          ),
-        )
-        .where(
-          and(
-            eq(savedPhrases.ownerId, ownerId),
-            or(
-              isNull(studyProgress.id),
-              lte(studyProgress.nextReviewAt, now),
-            ),
-          ),
-        ),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(studyProgress)
-        .where(
-          and(
-            eq(studyProgress.ownerId, ownerId),
-            sql`${studyProgress.intervalDays} >= 21`,
-          ),
-        ),
-      db
-        .select({ dailyGoal: appUsers.dailyStudyGoal })
-        .from(appUsers)
-        .where(eq(appUsers.id, ownerId))
-        .limit(1),
-      db
-        .select({ reviewedAt: studyReviewEvents.reviewedAt })
-        .from(studyReviewEvents)
-        .where(
-          and(
-            eq(studyReviewEvents.ownerId, ownerId),
-            gt(studyReviewEvents.reviewedAt, historyStart),
-          ),
-        ),
-      db
-        .select({ nextReviewAt: studyProgress.nextReviewAt })
-        .from(studyProgress)
-        .where(
-          and(
-            eq(studyProgress.ownerId, ownerId),
-            gt(studyProgress.nextReviewAt, now),
-          ),
-        )
-        .orderBy(asc(studyProgress.nextReviewAt))
-        .limit(1),
-    ]);
-
   const today = studyDay(now);
-  const reviewedDays = new Set(events.map((event) => studyDay(event.reviewedAt)));
-
+  // One round trip and one pass over saved cards. Transfer distinct dates, not
+  // every review event; the existing 370-day streak window stays bounded.
+  const result = await db.execute<{
+    totalSaved: number; dueCount: number; masteredCount: number;
+    nextReviewAt: string | Date | null; dailyGoal: number;
+    reviewedToday: number; reviewedDays: string[];
+  }>(sql`
+    with phrase_stats as (
+      select count(*)::int as "totalSaved",
+        count(*) filter (where p.id is null or p.next_review_at <= ${now.toISOString()}::timestamptz)::int as "dueCount",
+        count(*) filter (where p.interval_days >= 21)::int as "masteredCount",
+        min(p.next_review_at) filter (where p.next_review_at > ${now.toISOString()}::timestamptz) as "nextReviewAt"
+      from ${savedPhrases} s left join ${studyProgress} p
+        on p.saved_phrase_id = s.id and p.owner_id = ${ownerId}
+      where s.owner_id = ${ownerId}
+    ), review_days as (
+      select to_char(reviewed_at at time zone 'Asia/Seoul', 'YYYY-MM-DD') as day, count(*)::int as count
+      from ${studyReviewEvents}
+      where owner_id = ${ownerId} and reviewed_at > ${historyStart.toISOString()}::timestamptz
+      group by 1
+    )
+    select phrase_stats.*,
+      coalesce((select daily_study_goal from ${appUsers} where id = ${ownerId}), 10) as "dailyGoal",
+      coalesce((select count from review_days where day = ${today}), 0) as "reviewedToday",
+      coalesce((select json_agg(day) from review_days), '[]'::json) as "reviewedDays"
+    from phrase_stats
+  `);
+  const row = result.rows[0];
   return {
-    totalSaved: totalResult[0]?.count ?? 0,
-    dueCount: dueResult[0]?.count ?? 0,
-    reviewedToday: events.filter((event) => studyDay(event.reviewedAt) === today)
-      .length,
-    masteredCount: masteredResult[0]?.count ?? 0,
-    streakDays: calculateStreak(reviewedDays, now),
-    dailyGoal: profile[0]?.dailyGoal ?? 10,
-    nextReviewAt: nextReview[0]?.nextReviewAt.toISOString() ?? null,
+    totalSaved: row.totalSaved,
+    dueCount: row.dueCount,
+    reviewedToday: row.reviewedToday,
+    masteredCount: row.masteredCount,
+    streakDays: calculateStreak(new Set(row.reviewedDays), now),
+    dailyGoal: row.dailyGoal,
+    nextReviewAt: row.nextReviewAt ? new Date(row.nextReviewAt).toISOString() : null,
   };
 }
 
