@@ -1,0 +1,46 @@
+import { ZodError } from "zod";
+import { jsonError } from "@/lib/api";
+import { roleplayRequestSchema } from "@/lib/study-practice";
+import { generateRoleplayReply, OllamaOutputError, OllamaUnavailableError } from "@/server/ollama";
+import { consumeRateLimit } from "@/server/rate-limit";
+
+export const runtime = "nodejs";
+export const maxDuration = 180;
+
+export async function POST(request: Request) {
+  const requestId = crypto.randomUUID();
+  const origin = request.headers.get("origin");
+  if (origin && origin !== new URL(request.url).origin) {
+    return jsonError(requestId, 403, "INVALID_ORIGIN", "같은 사이트에서 요청해 주세요.");
+  }
+  const key = `study-chat:${request.headers.get("x-forwarded-for") ?? "single-user"}`;
+  const rate = consumeRateLimit(key, 6);
+  if (!rate.allowed) return jsonError(requestId, 429, "RATE_LIMITED", `${rate.retryAfterSeconds}초 후 다시 시도해 주세요.`, true);
+
+  try {
+    // Enforce the limit while reading, including requests without Content-Length.
+    const reader = request.body?.getReader();
+    if (!reader) return jsonError(requestId, 400, "INVALID_BODY", "메시지를 입력해 주세요.");
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 24_000) {
+        await reader.cancel();
+        return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "대화가 너무 깁니다. 새 대화를 시작해 주세요.");
+      }
+      chunks.push(value);
+    }
+    const input = roleplayRequestSchema.parse(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+    const result = await generateRoleplayReply(input, request.signal);
+    return Response.json({ ...result, requestId }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    if (error instanceof ZodError || error instanceof SyntaxError) return jsonError(requestId, 400, "INVALID_INPUT", "대화 내용과 언어를 확인해 주세요.");
+    if (error instanceof OllamaUnavailableError) return jsonError(requestId, 503, "OLLAMA_UNAVAILABLE", "AI 응답을 받지 못했어요. Ollama 연결을 확인하거나 다시 시도해 주세요.", true);
+    if (error instanceof OllamaOutputError) return jsonError(requestId, 502, "INVALID_MODEL_OUTPUT", "AI 답변 형식을 정리하지 못했어요. 다시 시도해 주세요.", true);
+    console.error("study_chat_failed", { requestId, errorType: error instanceof Error ? error.name : "unknown" });
+    return jsonError(requestId, 500, "INTERNAL_ERROR", "대화를 진행하지 못했어요.", true);
+  }
+}
