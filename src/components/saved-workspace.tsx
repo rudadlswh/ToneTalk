@@ -1,6 +1,7 @@
 "use client";
+import { useToast } from "@/hooks/use-toast";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BookOpen, Check, Clipboard, LoaderCircle, Search, Square, Trash2, Volume2, X } from "lucide-react";
 import { useSpeech } from "@/hooks/use-speech";
@@ -29,7 +30,8 @@ export function SavedWorkspace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast } = useToast();
+  const pendingDeletes = useRef(new Set<string>());
   const { speakingId, speechError, speak, stop } = useSpeech();
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export function SavedWorkspace() {
           signal: controller.signal,
         });
         const data = await readJson<SavedResponse>(response);
-        setItems(data.items);
+        if (!controller.signal.aborted) setItems(data.items.filter((item) => !pendingDeletes.current.has(item.id)));
       } catch (caught) {
         if (caught instanceof Error && caught.name === "AbortError") return;
         setError(caught instanceof Error ? caught.message : "저장 문장을 불러오지 못했습니다.");
@@ -68,11 +70,6 @@ export function SavedWorkspace() {
     [items, query, language],
   );
 
-  const showToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(null), 2200);
-  };
-
   const copyText = async (text: string) => {
     await navigator.clipboard.writeText(text);
     showToast("클립보드에 복사했어요.");
@@ -83,16 +80,20 @@ export function SavedWorkspace() {
   };
 
   const remove = async (id: string) => {
+    if (pendingDeletes.current.has(id)) return;
+    pendingDeletes.current.add(id);
     if (speakingId === id) stop();
-    const previous = items;
     setItems((current) => current.filter((item) => item.id !== id));
     try {
       const response = await fetch(`/api/saved-phrases/${id}`, { method: "DELETE" });
       if (!response.ok) await readJson(response);
       showToast("저장 문장을 삭제했어요.");
     } catch (caught) {
-      setItems(previous);
+      // Reload the current filter rather than restoring a stale list snapshot.
       showToast(caught instanceof Error ? caught.message : "삭제하지 못했습니다.");
+    } finally {
+      pendingDeletes.current.delete(id);
+      setReloadKey((value) => value + 1);
     }
   };
 

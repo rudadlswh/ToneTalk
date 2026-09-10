@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AiProviderContext } from "@/components/ai-provider";
 import { usePathname } from "next/navigation";
 import {
   BookMarked,
@@ -19,10 +20,13 @@ const navigation = [
   { href: "/profile", label: "Profile", icon: UserRound, enabled: true },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, provider = "ollama" }: { children: React.ReactNode; provider?: "ollama" | "gemini" }) {
   const pathname = usePathname();
 
+  if (pathname === "/login" || pathname.startsWith("/auth/")) return children;
+
   return (
+    <AiProviderContext.Provider value={provider}>
     <div className="app-shell">
       <aside className="side-nav" aria-label="주요 메뉴">
         <Link href="/" className="brand-lockup" aria-label="ToneTalk 홈">
@@ -53,8 +57,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="local-model-card">
           <span className="status-dot" />
           <div>
-            <strong>Local & private</strong>
-            <span>Private Ollama</span>
+            <strong>{provider === "gemini" ? "Gemini API" : "Local & private"}</strong>
+            <span>{provider === "gemini" ? "Google cloud" : "Private Ollama"}</span>
           </div>
         </div>
       </aside>
@@ -82,5 +86,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
     </div>
+    </AiProviderContext.Provider>
   );
 }

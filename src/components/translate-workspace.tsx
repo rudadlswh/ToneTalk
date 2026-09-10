@@ -1,4 +1,6 @@
 "use client";
+import { useAiProvider } from "@/components/ai-provider";
+import { useToast } from "@/hooks/use-toast";
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -25,6 +27,7 @@ import {
 } from "@/lib/languages";
 import { readJson } from "@/lib/api";
 import type { Tone } from "@/lib/translation-contract";
+import { updateSessionBookmark } from "@/lib/translation-session-state";
 
 const toneMeta: Record<Tone, { label: string; emoji: string; className: string }> = {
   casual: { label: "Casual", emoji: "😊", className: "tone-casual" },
@@ -38,13 +41,14 @@ type TranslationResponse = { session: TranslationSessionDto; requestId: string }
 type SaveResponse = { savedPhraseId: string; requestId: string };
 
 export function TranslateWorkspace() {
+  const provider = useAiProvider();
   const [sourceText, setSourceText] = useState("");
   const [sourceLanguage, setSourceLanguage] = useState<SourceLanguage>("auto");
   const [targetLanguage, setTargetLanguage] = useState<TargetLanguage>("ja");
   const [session, setSession] = useState<TranslationSessionDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast } = useToast();
   const [savingVariantId, setSavingVariantId] = useState<string | null>(null);
   const [visibleExamples, setVisibleExamples] = useState(() => getInitialExamples("auto"));
   const { speakingId, speechError, speak, stop } = useSpeech();
@@ -75,11 +79,6 @@ export function TranslateWorkspace() {
     void loadDefaultLanguage();
     return () => controller.abort();
   }, []);
-
-  const showToast = (message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(null), 2200);
-  };
 
   const changeSourceLanguage = (next: SourceLanguage) => {
     languageTouched.current = true;
@@ -150,12 +149,7 @@ export function TranslateWorkspace() {
       if (savedPhraseId) {
         const response = await fetch(`/api/saved-phrases/${savedPhraseId}`, { method: "DELETE" });
         if (!response.ok) await readJson(response);
-        setSession({
-          ...session,
-          variants: session.variants.map((variant) =>
-            variant.id === variantId ? { ...variant, savedPhraseId: null } : variant,
-          ),
-        });
+        setSession((current) => updateSessionBookmark(current, session.id, variantId, null));
         showToast("저장을 취소했어요.");
       } else {
         const response = await fetch("/api/saved-phrases", {
@@ -164,14 +158,7 @@ export function TranslateWorkspace() {
           body: JSON.stringify({ variantId }),
         });
         const data = await readJson<SaveResponse>(response);
-        setSession({
-          ...session,
-          variants: session.variants.map((variant) =>
-            variant.id === variantId
-              ? { ...variant, savedPhraseId: data.savedPhraseId }
-              : variant,
-          ),
-        });
+        setSession((current) => updateSessionBookmark(current, session.id, variantId, data.savedPhraseId));
         showToast("내 표현장에 저장했어요.");
       }
     } catch (caught) {
@@ -189,7 +176,7 @@ export function TranslateWorkspace() {
           <h1>같은 뜻도, 상황에 맞게.</h1>
           <p>한 문장을 다섯 가지 말투로 비교하며 자연스럽게 익혀보세요.</p>
         </div>
-        <div className="privacy-pill"><span className="status-dot" /> Local LLM</div>
+        <div className="privacy-pill"><span className="status-dot" /> {provider === "gemini" ? "Gemini API" : "Local LLM"}</div>
       </header>
 
       <div className="translate-grid">

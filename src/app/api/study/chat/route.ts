@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { GeminiError } from "@/server/gemini";
 import { jsonError } from "@/lib/api";
 import { roleplayRequestSchema } from "@/lib/study-practice";
 import { generateRoleplayReply, OllamaOutputError, OllamaUnavailableError } from "@/server/ollama";
@@ -7,10 +8,13 @@ import { withRequestBudget, requestSignal } from "@/server/request-budget";
 import { withInferenceSlot, InferenceBusyError } from "@/server/inference-limit";
 import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 
+import { withAuth } from "@/server/auth";
+
 export const runtime = "nodejs";
+export const POST = withAuth(handlePOST);
 export const maxDuration = 180;
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   return withRequestBudget(request, () => handlePost(request));
 }
 
@@ -29,6 +33,7 @@ async function handlePost(request: Request) {
     const result = await withInferenceSlot(() => generateRoleplayReply(input, requestSignal() ?? request.signal));
     return Response.json({ ...result, requestId }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof GeminiError) return jsonError(requestId, error.status, error.code, error.message, true);
     if (error instanceof PayloadTooLargeError) return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "대화가 너무 깁니다. 새 대화를 시작해 주세요.");
     if (error instanceof InferenceBusyError) {
       const response = jsonError(requestId, 429, "AI_BUSY", "AI가 다른 요청을 처리 중이에요. 잠시 후 다시 보내 주세요.", true);

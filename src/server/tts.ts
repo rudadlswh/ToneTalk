@@ -1,7 +1,7 @@
 import "server-only";
 
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -22,8 +22,11 @@ export async function synthesizeLocalSpeech(
 
   const directory = await mkdtemp(join(tmpdir(), "tonetalk-tts-"));
   const outputPath = join(directory, "speech.m4a");
+  const inputPath = join(directory, "input.txt");
 
   try {
+    // User text is file content, never an option parsed by the native process.
+    await writeFile(inputPath, text, { encoding: "utf8", mode: 0o600 });
     await execFileAsync(
       "/usr/bin/say",
       [
@@ -35,7 +38,8 @@ export async function synthesizeLocalSpeech(
         outputPath,
         "--data-format=aac",
         "--bit-rate=64000",
-        text,
+        "-f",
+        inputPath,
       ],
       { timeout: 60_000, maxBuffer: 1_000_000 },
     );

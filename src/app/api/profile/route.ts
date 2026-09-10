@@ -1,11 +1,16 @@
+import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 import { ZodError } from "zod";
 import { jsonError } from "@/lib/api";
 import { updateProfileSchema } from "@/lib/profile-contract";
 import { getProfile, updateProfile } from "@/server/profile";
 
-export const runtime = "nodejs";
+import { withAuth } from "@/server/auth";
 
-export async function GET() {
+export const runtime = "nodejs";
+export const GET = withAuth(handleGET);
+export const PATCH = withAuth(handlePATCH);
+
+async function handleGET() {
   const requestId = crypto.randomUUID();
   try {
     const data = await getProfile();
@@ -19,16 +24,18 @@ export async function GET() {
   }
 }
 
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const input = updateProfileSchema.parse(await request.json());
+    const input = updateProfileSchema.parse(await readLimitedJson(request, 4096));
     const data = await updateProfile(input);
     return Response.json(
       { ...data, requestId },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "요청 본문이 너무 큽니다.");
+    if (error instanceof SyntaxError) return jsonError(requestId, 400, "INVALID_JSON", "올바른 JSON 본문을 보내 주세요.");
     if (error instanceof ZodError) {
       return jsonError(
         requestId,

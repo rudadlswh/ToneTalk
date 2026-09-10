@@ -3,15 +3,20 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+const fixture = vi.hoisted(() => ({ owner: `perf-${crypto.randomUUID()}` }));
+vi.mock("@/server/auth", () => ({
+  getAuthenticatedUser: async () => ({ id: fixture.owner, email: "performance@example.invalid" }),
+  requestOwner: (initialize: () => Promise<string>) => initialize(),
+}));
 import { tones } from "@/lib/translation-contract";
 
 describe.skipIf(process.env.PERF_DB_TEST !== "1")("development PostgreSQL performance integration", () => {
-  const owner = `perf-${randomUUID()}`;
+  const owner = fixture.owner;
   let pool: typeof import("@/server/db").pool | undefined;
   let cacheKey: string | undefined;
   beforeAll(async () => {
     if (process.env.DATABASE_SCHEMA !== "tonetalk_dev") throw new Error("Integration tests require tonetalk_dev explicitly");
-    process.env.SINGLE_USER_ID = owner;
+    if (process.env.OLLAMA_LEASE_SCHEMA && process.env.OLLAMA_LEASE_SCHEMA !== "tonetalk_dev") throw new Error("Lease test must not touch production coordination");
     pool = (await import("@/server/db")).pool;
   });
   afterAll(async () => {

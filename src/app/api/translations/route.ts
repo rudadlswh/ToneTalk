@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { GeminiError } from "@/server/gemini";
 import { jsonError } from "@/lib/api";
 import { translateRequestSchema } from "@/lib/translation-contract";
 import {
@@ -12,10 +13,13 @@ import { withRequestBudget } from "@/server/request-budget";
 import { InferenceBusyError } from "@/server/inference-limit";
 import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 
+import { withAuth } from "@/server/auth";
+
 export const runtime = "nodejs";
+export const POST = withAuth(handlePOST);
 export const maxDuration = 180;
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   return withRequestBudget(request, () => handlePost(request));
 }
 
@@ -50,6 +54,7 @@ async function handlePost(request: Request) {
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    if (error instanceof GeminiError) return jsonError(requestId, error.status, error.code, error.message, true);
     if (error instanceof PayloadTooLargeError) return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "요청 크기가 너무 큽니다.");
     if (error instanceof SyntaxError) return jsonError(requestId, 400, "INVALID_INPUT", "입력값을 확인해 주세요.");
     if (error instanceof InferenceBusyError) {

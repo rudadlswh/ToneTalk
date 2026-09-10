@@ -19,7 +19,8 @@ export function translationCacheKey(owner: string, text: string, source: string,
   const env = getEnv();
   // Increment this revision when prompt/format/validation semantics change.
   return createHash("sha256").update(JSON.stringify([
-    "tones-v2-structured", env.OLLAMA_BASE_URL, env.OLLAMA_MODEL,
+    "tones-v2-structured", env.AI_PROVIDER === "gemini" ? "gemini" : env.OLLAMA_BASE_URL,
+    env.AI_PROVIDER === "gemini" ? env.GEMINI_MODEL : env.OLLAMA_MODEL,
     owner, text.trim(), source, target,
   ])).digest("hex");
 }

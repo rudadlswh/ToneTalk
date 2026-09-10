@@ -1,3 +1,4 @@
+# Legacy reference only: current app uses Supabase TLS, not this plain local DB.
 services:
   postgres:
     image: postgres:16-alpine

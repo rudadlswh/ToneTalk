@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { GeminiError } from "@/server/gemini";
 import { jsonError } from "@/lib/api";
 import { lyricsRequestSchema } from "@/lib/lyrics-contract";
 import { lyricExplanationRequestSchema } from "@/lib/lyric-explanation";
@@ -8,10 +9,13 @@ import { withRequestBudget, requestSignal } from "@/server/request-budget";
 import { withInferenceSlot, InferenceBusyError } from "@/server/inference-limit";
 import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 
+import { withAuth } from "@/server/auth";
+
 export const runtime = "nodejs";
+export const POST = withAuth(handlePOST);
 export const maxDuration = 180;
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   return withRequestBudget(request, () => handlePost(request));
 }
 
@@ -32,6 +36,7 @@ async function handlePost(request: Request) {
     const result = await withInferenceSlot(() => generateLyrics(input, requestSignal() ?? request.signal));
     return Response.json({ ...result, requestId }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof GeminiError) return jsonError(requestId, error.status, error.code, error.message, true);
     if (error instanceof PayloadTooLargeError) return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "가사를 더 짧게 나눠 주세요.");
     if (error instanceof InferenceBusyError) {
       const response = jsonError(requestId, 429, "AI_BUSY", "AI가 다른 요청을 처리 중이에요. 잠시 후 이어서 번역해 주세요.", true);

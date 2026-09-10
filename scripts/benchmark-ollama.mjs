@@ -1,7 +1,7 @@
-// Run with node --env-file=.env.local scripts/benchmark-ollama.mjs
+// Node >=22.18 (native TypeScript): node --env-file=.env.local scripts/benchmark-ollama.mjs
 // Sequential real-model benchmark. Never downloads models or prints credentials.
-import { readFileSync } from "node:fs";
-import ts from "typescript";
+import { buildPrompt } from "../src/lib/translation-prompt.ts";
+import { translationFormat } from "../src/lib/translation-format.ts";
 
 const base = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434";
 const headers = { "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" };
@@ -9,16 +9,8 @@ if (process.env.OLLAMA_BASIC_AUTH_USERNAME && process.env.OLLAMA_BASIC_AUTH_PASS
   headers.Authorization = `Basic ${Buffer.from(`${process.env.OLLAMA_BASIC_AUTH_USERNAME}:${process.env.OLLAMA_BASIC_AUTH_PASSWORD}`).toString("base64")}`;
 }
 const models = process.argv.slice(2).length ? process.argv.slice(2) : ["qwen2.5:1.5b", "qwen2.5:14b"];
-const source = readFileSync(new URL("../src/server/ollama.ts", import.meta.url), "utf8");
-const promptSource = source.slice(source.indexOf("function buildPrompt("), source.indexOf("async function callOllama("));
 const tones = ["casual", "polite", "formal", "slang", "written"];
-const formatExports = {};
-new Function("exports", ts.transpileModule(readFileSync(new URL("../src/lib/translation-format.ts", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(formatExports);
-const format = process.env.BENCH_LEGACY_JSON === "1" ? "json" : formatExports.translationFormat;
-const languages = [{ code: "en", name: "English", nativeName: "English" }, { code: "ja", name: "Japanese", nativeName: "日本語" }];
-const buildPrompt = new Function("getLanguage", "languageCodes", "tones", ts.transpileModule(promptSource, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText + "\nreturn buildPrompt;")(
-  (code) => languages.find((language) => language.code === code), ["en", "ja", "ko", "fr", "es", "zh-CN", "de"], tones,
-);
+const format = process.env.BENCH_LEGACY_JSON === "1" ? "json" : translationFormat;
 const installed = await fetch(new URL("/api/tags", base), { headers, signal: AbortSignal.timeout(10_000) }).then((res) => res.json());
 const loaded = await fetch(new URL("/api/ps", base), { headers, signal: AbortSignal.timeout(10_000) }).then((res) => res.json());
 if (loaded.models?.length) throw new Error("A model is already loaded; stop the benchmark to avoid disrupting existing work. Retry after it unloads.");

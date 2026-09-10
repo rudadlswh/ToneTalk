@@ -1,9 +1,14 @@
+import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 import { z, ZodError } from "zod";
 import { jsonError } from "@/lib/api";
 import { languageCodes } from "@/lib/languages";
 import { listSavedPhrases, savePhrase } from "@/server/saved-phrases";
 
+import { withAuth } from "@/server/auth";
+
 export const runtime = "nodejs";
+export const GET = withAuth(handleGET);
+export const POST = withAuth(handlePOST);
 
 const saveSchema = z.object({ variantId: z.string().uuid() });
 const querySchema = z.object({
@@ -12,7 +17,7 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const url = new URL(request.url);
@@ -39,10 +44,10 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const requestId = crypto.randomUUID();
   try {
-    const input = saveSchema.parse(await request.json());
+    const input = saveSchema.parse(await readLimitedJson(request, 4096));
     const result = await savePhrase(input.variantId);
     if (!result) {
       return jsonError(requestId, 404, "VARIANT_NOT_FOUND", "저장할 번역 결과를 찾지 못했습니다.");
@@ -52,6 +57,8 @@ export async function POST(request: Request) {
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "요청 본문이 너무 큽니다.");
+    if (error instanceof SyntaxError) return jsonError(requestId, 400, "INVALID_JSON", "올바른 JSON 본문을 보내 주세요.");
     if (error instanceof ZodError) {
       return jsonError(requestId, 400, "VALIDATION_ERROR", "번역 결과 ID가 올바르지 않습니다.");
     }

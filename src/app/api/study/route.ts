@@ -2,13 +2,16 @@ import { z, ZodError } from "zod";
 import { jsonError } from "@/lib/api";
 import { getStudySummary, listDueStudyItems } from "@/server/study";
 
+import { withAuth } from "@/server/auth";
+
 export const runtime = "nodejs";
+export const GET = withAuth(handleGET);
 
 const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const requestId = crypto.randomUUID();
   try {
     const url = new URL(request.url);

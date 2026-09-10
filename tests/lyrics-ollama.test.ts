@@ -9,7 +9,7 @@ vi.mock("@/server/env", () => ({ getEnv: () => ({
   OLLAMA_BASIC_AUTH_PASSWORD: "test-password",
 }) }));
 
-import { generateLyrics, generateLyricExplanation, OllamaOutputError, OllamaUnavailableError } from "@/server/ollama";
+import { generateTranslation, generateRoleplayReply, generateLyrics, generateLyricExplanation, OllamaOutputError, OllamaUnavailableError } from "@/server/ollama";
 import type { LyricsRequest } from "@/lib/lyrics-contract";
 
 const input: LyricsRequest = { sourceLanguage: "en", targetLanguage: "ko", lines: [{ id: 3, text: "Morning light" }] };
@@ -17,6 +17,31 @@ const result = { lines: [{ id: 3, sourceLanguage: "en", translation: "아침 햇
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Ollama lyrics integration", () => {
+  it("preserves all four POST envelopes and their upstream error messages", async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(generateTranslation("Hello", "en", "ja")).rejects.toThrow("Ollama returned 503");
+    await expect(generateLyrics(input, new AbortController().signal)).rejects.toThrow("Lyrics request failed or timed out");
+    await expect(generateLyricExplanation({ action: "explain", text: "Hello", sourceLanguage: "en" }, new AbortController().signal)).rejects.toThrow("Lyric explanation failed or timed out");
+    await expect(generateRoleplayReply({ scenario: "cafe", language: "en", messages: [{ role: "user", content: "Hello" }] }, new AbortController().signal)).rejects.toThrow("Roleplay request failed or timed out");
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    const expectedOptions = [
+      { temperature: 0, num_predict: 1600, num_ctx: 4096 },
+      { temperature: 0, num_predict: 1200 },
+      { temperature: 0, num_predict: 2200 },
+      { temperature: 0.3, num_predict: 500 },
+    ];
+    fetcher.mock.calls.forEach(([url, init], index) => {
+      expect(url).toBe("https://ollama.example/api/chat");
+      expect(init.method).toBe("POST");
+      expect(init.cache).toBe("no-store");
+      expect(init.headers.get("content-type")).toBe("application/json");
+      expect(init.headers.get("ngrok-skip-browser-warning")).toBe("1");
+      expect(init.headers.get("authorization")).toBe(`Basic ${Buffer.from("test-user:test-password").toString("base64")}`);
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      expect(JSON.parse(init.body)).toMatchObject({ model: "test-model", stream: false, keep_alive: "10m", options: expectedOptions[index] });
+    });
+  });
   it("generates explanations with a schema and rejects rewritten source segments", async () => {
     const detail = { segments: [{ text: "Morning light", reading: "" }], words: [{ text: "light", reading: "light", hangulPronunciation: "라이트", meaning: "빛", grammar: "명사로 아침의 빛을 뜻해요." }], nuance: "아침 햇살의 이미지를 표현해요." };
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ message: { content: JSON.stringify(detail) } }))

@@ -1,8 +1,11 @@
 import { jsonError } from "@/lib/api";
 import { getSettings } from "@/server/settings";
 
+import { withAuth } from "@/server/auth";
+
 export const runtime = "nodejs";
-export async function GET() {
+export const GET = withAuth(handleGET);
+async function handleGET() {
   const requestId = crypto.randomUUID();
   try {
     return Response.json({ settings: await getSettings(), requestId }, { headers: { "Cache-Control": "no-store" } });

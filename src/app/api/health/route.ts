@@ -2,9 +2,12 @@ import { sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { checkOllama } from "@/server/ollama";
 
-export const runtime = "nodejs";
+import { withAuth } from "@/server/auth";
 
-export async function GET() {
+export const runtime = "nodejs";
+export const GET = withAuth(handleGET);
+
+async function handleGET() {
   const checks = await Promise.allSettled([
     db.execute(sql`select 1 as ok`),
     checkOllama(),

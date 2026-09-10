@@ -1,19 +1,21 @@
 import "server-only";
+import { sql } from "drizzle-orm";
 
 import { appUsers } from "@/db/schema";
 import { db } from "@/server/db";
-import { getEnv } from "@/server/env";
-
-// Bootstrap only, NOT an authentication/session cache. Replace this owner resolver
-// when introducing email login. Coalesce parallel startup reads in one instance.
-let initialization: Promise<void> | undefined;
+import { getAuthenticatedUser, requestOwner } from "@/server/auth";
 
 export async function getCurrentOwnerId() {
-  const ownerId = getEnv().SINGLE_USER_ID;
-  initialization ??= db.insert(appUsers)
-    .values({ id: ownerId, displayName: "ToneTalk Learner" })
-    .onConflictDoNothing({ target: appUsers.id })
-    .then(() => {}).catch((error) => { initialization = undefined; throw error; });
-  await initialization;
-  return ownerId;
+  return requestOwner(async () => {
+    const user = await getAuthenticatedUser();
+    // Auth UUID is the only identity. Never claim legacy rows by email.
+    // Email is read from Auth, not duplicated in app_users (email can change).
+    // Existing users take the indexed read branch, without a speculative insert.
+    // ON CONFLICT still protects two simultaneous first requests.
+    await db.execute(sql`insert into ${appUsers} (id, display_name)
+      select ${user.id}, 'ToneTalk Learner'
+      where not exists (select 1 from ${appUsers} where id = ${user.id})
+      on conflict (id) do nothing`);
+    return user.id;
+  });
 }

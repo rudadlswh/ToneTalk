@@ -158,7 +158,14 @@ export async function reviewStudyItem(
   now = new Date(),
 ) {
   const ownerId = await getCurrentOwnerId();
-  const [ownedItem] = await db
+  return db.transaction(async (tx) => {
+  // Lock the parent even before progress exists. Read progress in a separate
+  // statement after acquiring the lock so a waiting review sees the last commit.
+  const [parent] = await tx.select({ id: savedPhrases.id }).from(savedPhrases)
+    .where(and(eq(savedPhrases.id, savedPhraseId), eq(savedPhrases.ownerId, ownerId)))
+    .for("update");
+  if (!parent) return null;
+  const [ownedItem] = await tx
     .select({
       id: savedPhrases.id,
       progressId: studyProgress.id,
@@ -197,7 +204,6 @@ export async function reviewStudyItem(
     now,
   );
 
-  await db.transaction(async (tx) => {
     await tx
       .insert(studyProgress)
       .values({
@@ -232,8 +238,6 @@ export async function reviewStudyItem(
       rating,
       reviewedAt: now,
     });
-  });
-
   return {
     savedPhraseId,
     repetitions: next.repetitions,
@@ -241,4 +245,5 @@ export async function reviewStudyItem(
     reviewCount: (ownedItem.reviewCount ?? 0) + 1,
     nextReviewAt: next.nextReviewAt.toISOString(),
   };
+  });
 }

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+vi.mock("@/server/supabase-auth", () => ({
+  AuthConfigurationError: class extends Error {},
+  createAuthClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: "00000000-0000-4000-8000-000000000001", email: "test@example.com", email_confirmed_at: "2026-01-01" } }, error: null }) } }),
+}));
 vi.mock("@/server/inference-limit", () => ({ withInferenceSlot: (work: () => Promise<unknown>) => work(), InferenceBusyError: class extends Error {} }));
 
 vi.mock("@/server/ollama", () => ({
@@ -22,7 +26,7 @@ describe("POST /api/study/chat", () => {
     vi.mocked(generateRoleplayReply).mockResolvedValue({ reply: "こんにちは！", feedback: "丁寧な挨拶です。", suggestion: "コーヒーをください。" });
     const response = await POST(request());
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(await response.json()).toMatchObject({ reply: "こんにちは！", requestId: expect.any(String) });
     expect(generateRoleplayReply).toHaveBeenCalledTimes(1);
   });

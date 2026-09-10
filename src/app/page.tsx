@@ -1,5 +1,6 @@
 import { TranslateWorkspace } from "@/components/translate-workspace";
+import { ProtectedWorkspace } from "@/components/protected-workspace";
 
 export default function Home() {
-  return <TranslateWorkspace />;
+  return <ProtectedWorkspace path="/"><TranslateWorkspace /></ProtectedWorkspace>;
 }

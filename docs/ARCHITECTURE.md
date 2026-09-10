@@ -2,7 +2,7 @@
 
 ## 목표
 
-ToneTalk MVP는 7개 지원 언어의 문장을 자동 감지하거나 입력 언어를 직접 지정해 다른 언어의 다섯 가지 말투로 번역하고, 결과를 저장·검색·복습하는 단일 사용자 웹 앱이다. 외부 AI API 대신 사설망의 Ollama를 사용하며, 이후 이메일 로그인과 다중 사용자로 확장할 수 있어야 한다.
+ToneTalk MVP는 7개 지원 언어의 문장을 자동 감지하거나 입력 언어를 직접 지정해 다른 언어의 다섯 가지 말투로 번역하고, 결과를 저장·검색·복습하는 이메일 로그인 기반 다중 사용자 웹 앱이다. 외부 AI API 대신 사설망의 Ollama를 사용한다.
 
 ## 기술 선택
 
@@ -30,7 +30,7 @@ flowchart LR
 ```
 
 - 브라우저는 Ollama와 PostgreSQL에 직접 접근하지 않는다.
-- Route Handler는 입력 검증, 간단한 요청 제한, 서비스 호출, 오류 매핑만 담당한다.
+- Route Handler의 `withAuth`는 Supabase `getUser()` 검증, 변경 요청 Origin 검사, 요청별 사용자 컨텍스트, private/no-store 응답을 담당한다. 이후 입력 검증과 서비스 호출을 수행한다.
 - `src/server`는 `server-only` 경계 안에서 DB와 Ollama를 호출한다.
 - UI로 반환되는 데이터는 필요한 필드만 포함한 DTO다.
 - 브라우저가 Web Speech API를 제공하지 않으면 앱 서버의 TTS 대체 경로가 macOS 시스템 음성을 호출한다.
@@ -48,9 +48,9 @@ flowchart LR
 ### 저장 문장
 
 1. 사용자가 톤 결과의 저장 버튼을 누른다.
-2. `POST /api/saved-phrases`가 고정 MVP 소유자와 번역 variant를 묶는다.
+2. `POST /api/saved-phrases`가 로그인 사용자 소유의 번역 variant인지 확인하고 저장한다.
 3. `(owner_id, variant_id)` 유니크 제약으로 중복 저장을 방지한다.
-4. 로그인 도입 시 고정 소유자를 실제 사용자 ID로 교체하고 기존 데이터를 마이그레이션한다.
+4. 다른 사용자의 variant 저장 또는 저장 문장 삭제는 404로 거부한다.
 
 ### 간격 반복 학습
 
@@ -65,7 +65,7 @@ flowchart LR
 1. `app_users`가 표시 이름, 기본 번역 언어, 하루 복습 목표를 보관한다.
 2. 번역 화면은 Profile의 기본 언어를 불러와 최초 선택값에 반영한다.
 3. Profile API는 번역·저장·숙달·스트릭 통계를 사용자 범위로 집계한다.
-4. 로그인 도입 시 현재 Profile API 계약을 유지하고 소유자 확인 방식만 세션 기반으로 교체한다.
+4. Profile 계약은 유지하며 이메일은 검증된 Auth 사용자에서 읽는다. 프로필 수정 입력에서 사용자 ID와 이메일을 받지 않는다.
 
 ### 음성 읽기
 
@@ -82,12 +82,14 @@ flowchart LR
 3. 발음 표기는 번역 variant에 저장되어 Translate, Saved, Study 화면에서 동일하게 사용한다.
 4. 기존 데이터와의 호환성을 위해 두 발음 컬럼은 nullable로 유지하되 새 번역은 두 값을 모두 요구한다.
 
-## 단일 사용자에서 로그인으로 확장
+## 이메일 로그인과 사용자 분리
 
-- 초기 마이그레이션에 `app_users`와 모든 사용자 데이터의 `owner_id`를 포함한다.
-- MVP 시작 시 `single-user` 레코드를 seed한다.
-- 이메일 로그인 도입 시 `app_users.email`, `password_hash` 또는 외부 인증 subject를 추가한다.
-- API의 `getCurrentOwnerId()` 구현만 세션 기반으로 교체하고 DAL의 소유권 조건은 유지한다.
+- Supabase Auth 이메일 링크 + PKCE 코드 교환으로 HttpOnly 쿠키 세션을 만든다.
+- 페이지 Proxy는 토큰 갱신만 처리한다. 페이지와 API에서 별도로 사용자를 검증한다.
+- `getCurrentOwnerId()`는 검증된 Auth UUID만 반환한다. 초기 프로필 생성 Promise는 AsyncLocalStorage 요청 범위에만 보관한다.
+- 기존 `single-user` 및 공용 데이터는 자동 이동/삭제하지 않는다. 이메일로 기존 레코드를 찾아 합치지 않는다.
+- 앱 테이블은 private schema + RLS + anon/authenticated 권한 없음 상태를 유지한다. 서버의 privileged DB 연결에는 RLS 사용자 필터가 자동 적용되지 않으므로 DAL의 소유권 검사와 교차 사용자 테스트가 필수다.
+- 스키마 dev/prod는 분리되어도 같은 프로젝트의 Auth 계정 디렉터리는 공유된다. 자세한 배포/메일 설정은 [AUTH.md](AUTH.md)를 참고한다.
 
 ## 신뢰 경계와 운영 원칙
 
@@ -105,7 +107,7 @@ flowchart LR
 
 - `TranslationProvider` 인터페이스에 다른 로컬 모델 또는 외부 공급자 어댑터 추가
 - PostgreSQL 전문 검색·trigram 인덱스로 다국어 검색 고도화
-- 이메일 로그인과 사용자별 데이터 격리
+- 사용자 계정 삭제·내보내기 및 필요 시 공용 기록 이전 도구
 - 시간대 설정과 사용자별 학습일 경계를 지원하는 스트릭 계산
 - 규모 증가 시 사용자별 분산 quota 및 캐시 저장소 재검토
 

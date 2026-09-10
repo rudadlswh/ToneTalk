@@ -42,7 +42,8 @@ export async function createTranslation(
   const sessionId = randomUUID();
   const inferenceLatencyMs = cacheHit ? 0 : generated.latencyMs;
   const createdAt = new Date();
-  const model = getEnv().OLLAMA_MODEL;
+  const env = getEnv();
+  const model = env.AI_PROVIDER === "gemini" ? env.GEMINI_MODEL : env.OLLAMA_MODEL;
 
   const variants = generated.variants.map((variant, position) => ({
     id: randomUUID(),

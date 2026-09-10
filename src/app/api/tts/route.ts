@@ -1,3 +1,4 @@
+import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 import { ZodError } from "zod";
 import { jsonError } from "@/lib/api";
 import { ttsRequestSchema } from "@/lib/tts-contract";
@@ -7,9 +8,12 @@ import {
   synthesizeLocalSpeech,
 } from "@/server/tts";
 
-export const runtime = "nodejs";
+import { withAuth } from "@/server/auth";
 
-export async function POST(request: Request) {
+export const runtime = "nodejs";
+export const POST = withAuth(handlePOST);
+
+async function handlePOST(request: Request) {
   const requestId = crypto.randomUUID();
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > 5_000) {
@@ -29,7 +33,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const input = ttsRequestSchema.parse(await request.json());
+    const input = ttsRequestSchema.parse(await readLimitedJson(request, 5000));
     const audio = await synthesizeLocalSpeech(input.text, input.language);
     return new Response(audio, {
       headers: {
@@ -40,6 +44,8 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "요청 본문이 너무 큽니다.");
+    if (error instanceof SyntaxError) return jsonError(requestId, 400, "INVALID_JSON", "올바른 JSON 본문을 보내 주세요.");
     if (error instanceof ZodError) {
       return jsonError(
         requestId,

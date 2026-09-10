@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+vi.mock("@/server/supabase-auth", () => ({
+  AuthConfigurationError: class extends Error {},
+  createAuthClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: "00000000-0000-4000-8000-000000000001", email: "test@example.com", email_confirmed_at: "2026-01-01" } }, error: null }) } }),
+}));
 vi.mock("@/server/inference-limit", () => ({ withInferenceSlot: (work: () => Promise<unknown>) => work(), InferenceBusyError: class extends Error {} }));
 
 vi.mock("@/server/ollama", () => ({
@@ -34,7 +38,7 @@ describe("POST /api/lyrics", () => {
     const req = request();
     const response = await POST(req);
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(generateLyrics).toHaveBeenCalledWith({ sourceLanguage: "auto", targetLanguage: "ko", lines: [{ id: 0, text: "Morning light" }] }, expect.any(AbortSignal));
   });
   it("rejects cross-origin, invalid JSON, huge bodies and too many lines before inference", async () => {

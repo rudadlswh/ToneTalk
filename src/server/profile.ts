@@ -7,18 +7,22 @@ import type { TargetLanguage } from "@/lib/languages";
 import { db } from "@/server/db";
 import { getCurrentOwnerId } from "@/server/owner";
 import { getStudySummary } from "@/server/study";
+import { getAuthenticatedUser } from "@/server/auth";
 
 export async function getProfile(): Promise<{
   profile: ProfileDto;
   stats: ProfileStatsDto;
 }> {
   const ownerId = await getCurrentOwnerId();
-  const [users, translationCount, study] = await Promise.all([
-    db.select().from(appUsers).where(eq(appUsers.id, ownerId)).limit(1),
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(translationSessions)
-      .where(eq(translationSessions.ownerId, ownerId)),
+  const [users, study] = await Promise.all([
+    db.select({
+      id: appUsers.id,
+      displayName: appUsers.displayName,
+      defaultTargetLanguage: appUsers.defaultTargetLanguage,
+      dailyStudyGoal: appUsers.dailyStudyGoal,
+      createdAt: appUsers.createdAt,
+      translationCount: sql<number>`(select count(*)::int from ${translationSessions} where ${translationSessions.ownerId} = ${ownerId})`,
+    }).from(appUsers).where(eq(appUsers.id, ownerId)).limit(1),
     getStudySummary(),
   ]);
   const user = users[0];
@@ -27,14 +31,14 @@ export async function getProfile(): Promise<{
   return {
     profile: {
       id: user.id,
-      email: user.email,
+      email: (await getAuthenticatedUser()).email,
       displayName: user.displayName,
       defaultTargetLanguage: user.defaultTargetLanguage as TargetLanguage,
       dailyStudyGoal: user.dailyStudyGoal,
       createdAt: user.createdAt.toISOString(),
     },
     stats: {
-      translationCount: translationCount[0]?.count ?? 0,
+      translationCount: user.translationCount,
       savedPhraseCount: study.totalSaved,
       masteredCount: study.masteredCount,
       streakDays: study.streakDays,

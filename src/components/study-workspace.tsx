@@ -1,4 +1,5 @@
 "use client";
+import { useToast } from "@/hooks/use-toast";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -65,7 +66,7 @@ export function StudyWorkspace() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast } = useToast(1800);
   const { speakingId, speechError, speak, stop } = useSpeech();
 
   useEffect(() => {
@@ -118,8 +119,7 @@ export function StudyWorkspace() {
       if (remainingItems.length === 0 && data.summary.dueCount > 0) {
         setReloadKey((value) => value + 1);
       }
-      setToast("복습 결과를 저장했어요.");
-      window.setTimeout(() => setToast(null), 1800);
+      showToast("복습 결과를 저장했어요.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "복습 결과를 저장하지 못했습니다.");
     } finally {

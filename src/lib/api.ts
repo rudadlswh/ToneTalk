@@ -21,6 +21,10 @@ export function jsonError(
 }
 
 export async function readJson<T>(response: Response): Promise<T> {
+  if (response.status === 401 && typeof window !== "undefined") {
+    window.location.replace("/login");
+    throw new Error("세션이 만료되었습니다. 다시 로그인해 주세요.");
+  }
   const body = (await response.json()) as T | ApiErrorBody;
   if (!response.ok) {
     const maybeError = body as ApiErrorBody;

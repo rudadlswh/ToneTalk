@@ -2,7 +2,7 @@
 
 한 문장을 상황에 맞는 다섯 가지 말투로 번역하고, 유용한 표현을 저장·검색하는 로컬 AI 언어 학습 웹 앱입니다.
 
-현재 MVP는 단일 사용자로 동작하지만, 모든 데이터에 `owner_id`가 포함되어 있어 이메일 로그인 도입 시 기존 구조를 유지할 수 있습니다. 외부 AI API를 사용하지 않고 사설망의 Ollama만 서버에서 호출합니다.
+이메일 로그인 링크(Supabase Auth)로 사용자를 구분하며 저장 문장·프로필·복습 기록·번역 캐시는 검증된 사용자 ID별로 분리됩니다. 외부 AI API를 사용하지 않고 사설망의 Ollama만 서버에서 호출합니다. 배포 전 [인증 설정 및 검증 절차](docs/AUTH.md)를 적용하세요.
 
 ## 구현된 핵심 기능
 
@@ -161,9 +161,11 @@ study_review_events
   rating, reviewed_at
 ```
 
-초기 사용자는 `SINGLE_USER_ID=single-user`로 자동 생성됩니다. 이메일 로그인 도입 시 `getCurrentOwnerId()`만 인증 세션 기반으로 교체하고 기존 DAL의 `owner_id` 조건을 그대로 사용합니다.
+Supabase Auth의 UUID를 `app_users.id`와 `owner_id`로 사용합니다. `SINGLE_USER_ID`는 더 이상 사용하지 않습니다. 기존 공용 데이터는 보존하지만 새 계정에 자동 귀속하지 않습니다. 로그인 이메일은 검증된 Auth 사용자에서 읽으며 기존 `app_users.email` 컬럼은 식별·계정 병합에 사용하지 않습니다. DB 스키마 변경 없이 적용됩니다.
 
 ## API 엔드포인트
+
+아래 앱 API는 모두 로그인 필수입니다(미인증 401). 변경 요청에는 같은 출처의 `Origin` 헤더가 필요합니다. 로그인 발송/콜백/로그아웃 경로는 [AUTH.md](docs/AUTH.md)를 참고하세요.
 
 | Method | Endpoint | 설명 |
 |---|---|---|
@@ -238,7 +240,7 @@ study_review_events
 - 번역·저장·학습 통계
 - 표시 이름, 기본 번역 언어, 하루 복습 목표 설정
 - PostgreSQL과 Ollama 연결 상태
-- 단일 사용자와 로컬 데이터 처리 안내
+- 로그인 이메일, 계정별 데이터 보관 안내, 로그아웃
 
 ## 실행 방법
 
@@ -257,21 +259,14 @@ OLLAMA_MODEL=qwen2.5:14b
 
 ### 2. PostgreSQL
 
-Docker Desktop이 실행 중이라면:
-
-```bash
-docker compose up -d postgres
-```
-
-이미 PostgreSQL이 있다면 `DATABASE_URL`에 별도 DB를 지정합니다.
+로컬 앱도 Supabase `tonetalk_dev`에 연결합니다. `compose.yaml`은 과거 로컬 DB 참고용이며 현재 TLS 연결 설정과 호환되는 실행 경로가 아닙니다. [DB 운영 절차](docs/DATABASE-OPERATIONS.md)를 따르세요.
 
 ### 3. 설치와 마이그레이션
 
-현재 Supabase의 `tonetalk_dev`/`tonetalk_prod`를 사용한다면 이전 `public` 기반 Drizzle 이력을 무작정 재실행하지 마세요. 이번 추가 테이블 SQL 및 적용 상태는 [성능 문서](docs/PERFORMANCE.md)의 DB 변경 항목에 기록했습니다. 아래는 이전 로컬 DB 초기화 흐름입니다.
+현재 Supabase의 `tonetalk_dev`/`tonetalk_prod`에 이전 `public` 기반 Drizzle 이력을 재실행하지 마세요. 빈 환경 초기화와 기존 환경 업그레이드는 [DB 운영 절차](docs/DATABASE-OPERATIONS.md)로 통일합니다.
 
 ```bash
 pnpm install
-pnpm db:migrate
 ```
 
 ### 4. 개발 서버
@@ -288,13 +283,13 @@ pnpm dev
 pnpm lint
 pnpm test:run
 pnpm build
-curl http://localhost:3000/api/health
+# 로그인 쿠키 없는 /api/health 호출은 이제 401이 정상입니다.
 ```
 
 ## 현재 MVP 제약과 다음 단계
 
 1. 단일 Node 프로세스용 요청 제한을 Redis 기반 분산 제한으로 교체
-2. 이메일 인증 도입 후 `owner_id`를 실제 사용자 세션으로 연결
+2. 이메일 SMTP 설정 및 실제 두 계정/두 브라우저 로그인 검증, 필요 시 기존 공용 데이터의 명시적 이전
 3. 번역 평가셋을 추가해 모델·프롬프트 변경 시 의미 보존 회귀 테스트
 4. 로마자·한글 발음은 로컬 LLM이 생성하는 학습 보조 표기이며 실제 발음과 차이가 있을 수 있음
 5. 저장·복습 목록을 커서 페이지네이션과 PostgreSQL 다국어 검색 인덱스로 확장

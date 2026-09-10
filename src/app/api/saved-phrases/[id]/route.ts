@@ -2,11 +2,14 @@ import { z } from "zod";
 import { jsonError } from "@/lib/api";
 import { deleteSavedPhrase } from "@/server/saved-phrases";
 
+import { withAuth } from "@/server/auth";
+
 export const runtime = "nodejs";
+export const DELETE = withAuth(handleDELETE);
 
 const idSchema = z.string().uuid();
 
-export async function DELETE(
+async function handleDELETE(
   _request: Request,
   context: RouteContext<"/api/saved-phrases/[id]">,
 ) {

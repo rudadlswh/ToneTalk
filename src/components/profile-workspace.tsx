@@ -1,4 +1,7 @@
 "use client";
+import { useAiProvider } from "@/components/ai-provider";
+import { useToast } from "@/hooks/use-toast";
+import { SignOutButton } from "@/components/sign-out-button";
 
 import { useEffect, useState } from "react";
 import {
@@ -31,6 +34,7 @@ type HealthResponse = {
 };
 
 export function ProfileWorkspace() {
+  const provider = useAiProvider();
   const [profile, setProfile] = useState<ProfileDto | null>(null);
   const [stats, setStats] = useState<ProfileStatsDto | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -42,7 +46,7 @@ export function ProfileWorkspace() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast } = useToast();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,8 +109,7 @@ export function ProfileWorkspace() {
       setProfile(data.profile);
       setStats(data.stats);
       setDisplayName(data.profile.displayName);
-      setToast("학습 설정을 저장했어요.");
-      window.setTimeout(() => setToast(null), 2200);
+      showToast("학습 설정을 저장했어요.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "프로필을 저장하지 못했습니다.");
     } finally {
@@ -119,13 +122,14 @@ export function ProfileWorkspace() {
   }
 
   if (!profile || !stats) {
-    return <div className="profile-loading is-error"><span>{error ?? "프로필을 불러오지 못했습니다."}</span></div>;
+    return <div className="profile-loading is-error"><span>{error ?? "프로필을 불러오지 못했습니다."}</span><SignOutButton /></div>;
   }
 
   const initial = profile.displayName.trim().charAt(0).toUpperCase() || "T";
 
   return (
     <div className="page-wrap profile-page">
+      <SignOutButton />
       <header className="page-header profile-header">
         <div>
           <span className="eyebrow">YOUR LEARNING SPACE</span>
@@ -137,9 +141,9 @@ export function ProfileWorkspace() {
       <section className="profile-hero">
         <div className="profile-avatar">{initial}</div>
         <div className="profile-identity">
-          <span className="single-user-badge"><LockKeyhole size={13} /> Single-user mode</span>
+          <span className="single-user-badge"><LockKeyhole size={13} /> 개인 계정</span>
           <h2>{profile.displayName}</h2>
-          <p>{profile.email ?? "이메일 로그인은 다음 단계에서 연결할 수 있어요."}</p>
+          <p>{profile.email?.replace(/@users\.tonetalk\.invalid$/, "")}</p>
         </div>
         <div className="profile-joined">함께한 지<strong>{memberDays}일</strong></div>
       </section>
@@ -198,14 +202,14 @@ export function ProfileWorkspace() {
 
         <aside className="profile-side">
           <section className="system-panel">
-            <div className="panel-heading"><div><span className="section-label">LOCAL SYSTEM</span><h2>서비스 상태</h2></div></div>
+            <div className="panel-heading"><div><span className="section-label">SERVICE STATUS</span><h2>서비스 상태</h2></div></div>
             <div className="service-row"><span className="service-icon"><Database size={18} /></span><div><strong>PostgreSQL</strong><small>학습 데이터 저장소</small></div><span className={`service-status ${healthLoading ? "" : health?.database ? "is-online" : "is-offline"}`}>{healthLoading ? "확인 중" : health?.database ? "정상" : "확인 필요"}</span></div>
-            <div className="service-row"><span className="service-icon"><Server size={18} /></span><div><strong>Ollama</strong><small>로컬 번역 모델</small></div><span className={`service-status ${healthLoading ? "" : health?.ollama ? "is-online" : "is-offline"}`}>{healthLoading ? "확인 중" : health?.ollama ? "정상" : "연결 안 됨"}</span></div>
+            <div className="service-row"><span className="service-icon"><Server size={18} /></span><div><strong>{provider === "gemini" ? "Gemini" : "Ollama"}</strong><small>{provider === "gemini" ? "API 연결 확인 · 잔여 한도는 별도" : "로컬 번역 모델"}</small></div><span className={`service-status ${healthLoading ? "" : health?.ollama ? "is-online" : "is-offline"}`}>{healthLoading ? "확인 중" : health?.ollama ? "정상" : "연결 안 됨"}</span></div>
           </section>
 
           <section className="privacy-panel">
             <span className="privacy-icon"><UserRound size={20} /></span>
-            <div><strong>내 데이터는 로컬에</strong><p>문장과 학습 기록은 설정한 PostgreSQL에만 저장되고, 번역은 사설 Ollama에서 처리됩니다.</p></div>
+            <div><strong>내 계정에 보관되는 학습 기록</strong><p>저장 문장과 학습 기록은 계정별로 보관됩니다. {provider === "gemini" ? "AI 입력은 Google Gemini로 전송됩니다. 무료 등급 입력·출력은 제품 개선에 사용될 수 있으므로 민감한 정보를 입력하지 마세요." : "번역은 사설 Ollama에서 처리됩니다."}</p></div>
           </section>
         </aside>
       </div>

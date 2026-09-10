@@ -10,7 +10,9 @@ export class InferenceBusyError extends Error {}
 // No connection or SQL transaction is held while the PC generates text.
 export async function withInferenceSlot<T>(work: () => Promise<T>): Promise<T> {
   assertRequestActive();
-  const table = `"${getEnv().DATABASE_SCHEMA}"."inference_leases"`;
+  const env = getEnv();
+  if (env.AI_PROVIDER === "gemini") return work();
+  const table = `"${env.OLLAMA_LEASE_SCHEMA ?? env.DATABASE_SCHEMA}"."inference_leases"`;
   const token = randomUUID();
   const acquired = await pool.query<{ token: string }>(
     `insert into ${table} (id, token, expires_at) values ('ollama', $1, now() + interval '200 seconds')
