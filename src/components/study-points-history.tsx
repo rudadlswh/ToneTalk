@@ -45,7 +45,6 @@ export function StudyPointsHistory() {
   return <section className="settings-panel points-history" aria-labelledby="points-history-title">
     <div className="panel-heading"><div><span className="section-label">STUDY POINTS</span><h2 id="points-history-title">포인트 적립 기록</h2></div><Sparkles size={21} /></div>
     <div className="points-total"><span>누적 포인트</span><strong>{data ? `${data.totalPoints.toLocaleString("ko-KR")} XP` : "—"}</strong></div>
-    <p className="practice-muted">퀴즈 20 XP · 퍼즐 25 XP · 4회 대화 완료 35 XP. 적립 시각은 한국 시간입니다.</p>
     {data?.items.length === 0 && <p className="points-empty">아직 적립 기록이 없어요. 스터디에서 첫 포인트를 모아 보세요.</p>}
     {Boolean(data?.items.length) && <ul className="points-list" aria-label="적립 내역">
       {data!.items.map((item) => <li key={item.id}><div><strong>{studyPointLabels[item.activity]}</strong><time dateTime={item.createdAt}>{earnedAt.format(new Date(item.createdAt))}</time></div><span>+{item.points} XP</span></li>)}

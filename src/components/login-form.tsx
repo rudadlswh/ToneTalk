@@ -1,6 +1,6 @@
 "use client";
 import { useState, type FormEvent } from "react";
-import { Sparkles } from "lucide-react";
+import Image from "next/image";
 import { safeAuthNext } from "@/lib/auth-navigation";
 import { readJson } from "@/lib/api";
 
@@ -25,7 +25,9 @@ export function LoginForm({ next, error }: { next: string; error: string | null 
     finally { setPending(false); }
   };
   return <main className="auth-page"><section className="auth-card" aria-labelledby="login-title">
-    <span className="brand-mark"><Sparkles size={24} /></span><p className="section-label">ToneTalk</p>
+    <span className="brand-mark brand-mark-image" aria-hidden="true">
+      <Image className="brand-logo-image" src="/tonetalk-logo.png" width={1024} height={559} alt="" priority />
+    </span><p className="section-label">ToneTalk</p>
     <h1 id="login-title">{signup ? "나만의 계정 만들기" : "나만의 표현장으로 시작하세요"}</h1>
     <p>이메일 인증 없이 아이디와 비밀번호로 시작하세요. 저장 문장과 학습 기록은 계정별로 보관됩니다.</p>
     <form onSubmit={submit} key={String(signup)}>

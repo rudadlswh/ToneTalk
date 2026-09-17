@@ -44,6 +44,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 }
 .brand-lockup { display: flex; align-items: center; gap: 11px; padding: 4px 10px 28px; color: var(--ink); font-weight: 850; font-size: 20px; text-decoration: none; letter-spacing: -0.04em; }
 .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; color: white; background: linear-gradient(135deg, var(--violet), #d7478f 60%, var(--brand)); border-radius: 12px; box-shadow: 0 8px 18px rgba(117,87,255,.24); }
+.brand-mark-image { position: relative; overflow: hidden; background: #fff8ee; }
+.brand-mark-image .brand-logo-image { position: absolute; top: -7px; left: 50%; width: 96px; height: auto; max-width: none; transform: translateX(-50%); }
 .nav-list { display: grid; gap: 6px; }
 .nav-item { min-height: 48px; padding: 0 13px; display: flex; align-items: center; gap: 12px; border-radius: 13px; color: #686b7d; text-decoration: none; font-weight: 700; font-size: 14px; transition: .18s ease; }
 .nav-item:hover { background: #f5f3f7; color: var(--ink); }
@@ -400,7 +402,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .practice-header { gap: 20px; }
 .practice-xp { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: #a54c00; background: #fffbeb; padding: 12px 16px; border: 1px solid #ffe398; border-radius: 16px; }
 .practice-xp small { flex-basis: 100%; font-size: 10px; color: #8b704e; }
-.points-history { margin-top: 18px; }
+.points-history { margin: 18px 0; }
 .points-total { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; border-radius: 14px; background: #fffbeb; color: #8d4700; }
 .points-total strong { margin-left: auto; font-size: 25px; }
 .points-list { margin: 16px 0; padding: 0; list-style: none; }
@@ -414,20 +416,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .practice-tile:hover, .practice-tile:focus-visible { border-color: var(--practice-accent); transform: translateY(-2px); }
 .practice-chat { --practice-accent: #6041ff; --practice-soft: #f0efff; }
 .practice-puzzle { --practice-accent: #009d76; --practice-soft: #edfff7; }
+.practice-review { --practice-accent: #2675d8; --practice-soft: #eef6ff; }
+.practice-mistake { --practice-accent: #d36a22; --practice-soft: #fff5eb; text-decoration: none; }
 .practice-tile-icon { height: 64px; display: grid; place-items: center; color: var(--practice-accent); background: var(--practice-soft); border: 1px solid color-mix(in srgb, var(--practice-accent) 15%, white); border-radius: 20px; }
 .practice-tile-content { display: flex; flex-direction: column; align-items: flex-start; gap: 13px; min-width: 0; }
 .practice-tile-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
 .practice-tile-title strong { color: #131b2e; font-size: 22px; letter-spacing: -.04em; }
 .practice-tile-title > span { color: #8c9cb7; font-size: 15px; }
 .practice-reward { display: inline-flex; gap: 6px; align-items: center; padding: 4px 12px; border-radius: 20px; color: #a84d00; background: #fffbed; border: 1px solid #ffe59b; font-weight: 800; font-size: 13px; }
+.practice-reward-neutral { color: var(--practice-accent); background: var(--practice-soft); border-color: color-mix(in srgb, var(--practice-accent) 22%, white); }
 .practice-description { font-size: 16px; line-height: 1.8; color: #566781; word-break: keep-all; }
 .practice-tags { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
 .practice-tags > span { padding: 7px 12px; border-radius: 10px; background: #f1f5f9; color: #52647d; font-size: 12px; font-weight: 650; }
 .practice-tags > span:last-child { color: var(--practice-accent); background: var(--practice-soft); }
 .practice-chevron { margin-top: 10px; height: 34px; display: grid; place-items: center; border-radius: 12px; background: #f7f9fc; color: #8b9bb5; }
-.practice-review-link { width: 100%; display: flex; align-items: center; gap: 15px; margin-top: 24px; padding: 20px; border: 1px solid #e1e7f0; border-radius: 16px; background: #fff; color: #536079; text-align: left; cursor: pointer; }
-.practice-review-link > span { flex: 1; display: grid; gap: 5px; }
-.practice-review-link small { color: #7a8496; line-height: 1.6; }
 .mistake-filters { margin: 22px 0; }
 .mistake-list { display: grid; gap: 16px; margin-bottom: 20px; }
 .mistake-list h2 { font-size: 20px; overflow-wrap: anywhere; }

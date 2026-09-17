@@ -54,9 +54,27 @@ export function StudyPracticeWorkspace() {
                   </span><span className="practice-chevron"><ChevronRight size={23} /></span>
                 </button>;
               })}
+              <button type="button" className="practice-tile practice-review" onClick={() => setMode("review")}>
+                <span className="practice-tile-icon"><BookOpen size={29} /></span>
+                <span className="practice-tile-content">
+                  <span className="practice-tile-title"><strong>저장 표현 복습</strong><span>Saved Review</span></span>
+                  <span className="practice-reward practice-reward-neutral">간격 반복 학습</span>
+                  <span className="practice-description">저장한 표현을 기억이 흐려지는 시점에 다시 만나고, 기억 정도에 따라 다음 복습 일정을 조정합니다.</span>
+                  <span className="practice-tags"><span>전체 수준 · 표현 암기</span><span>내 저장 문장 연동</span></span>
+                </span>
+                <span className="practice-chevron"><ChevronRight size={23} /></span>
+              </button>
+              <Link className="practice-tile practice-mistake" href="/study/mistakes">
+                <span className="practice-tile-icon"><RotateCcw size={29} /></span>
+                <span className="practice-tile-content">
+                  <span className="practice-tile-title"><strong>오답 복습</strong><span>Mistake Review</span></span>
+                  <span className="practice-reward practice-reward-neutral">추가 XP 없음</span>
+                  <span className="practice-description">틀린 어투 퀴즈와 헷갈린 단어 퍼즐을 모아 다시 풀고, 반복해서 어려운 표현을 집중적으로 익힙니다.</span>
+                  <span className="practice-tags"><span>맞춤 복습 · 약점 보완</span><span>풀이 결과 저장</span></span>
+                </span>
+                <span className="practice-chevron"><ChevronRight size={23} /></span>
+              </Link>
             </div>
-            <button className="practice-review-link" onClick={() => setMode("review")}><BookOpen size={21} /><span><strong>저장 표현 복습</strong><small>기존 플래시카드와 간격 반복 학습을 이어가세요.</small></span><ArrowRight size={18} /></button>
-            <Link className="practice-review-link" href="/study/mistakes"><RotateCcw size={21} /><span><strong>오답 복습</strong><small>틀린 퀴즈와 헷갈린 퍼즐을 다시 풀어보세요. 추가 XP 없이 학습 결과를 저장합니다.</small></span><ArrowRight size={18} /></Link>
             <p className="practice-footnote">XP는 계정에 저장되는 학습용 포인트이며 복습 통계와 별개입니다. 퀴즈·퍼즐·채팅 각각 하루 한 번, 총 80 XP까지 적립됩니다. 한국 시간 자정에 초기화되며 이후에도 학습은 계속할 수 있어요.</p>
           </>
         )}

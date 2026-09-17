@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { AiProviderContext } from "@/components/ai-provider";
 import { usePathname } from "next/navigation";
 import {
@@ -8,7 +9,6 @@ import {
   Brain,
   Languages,
   Music2,
-  Sparkles,
   UserRound,
 } from "lucide-react";
 
@@ -30,7 +30,9 @@ export function AppShell({ children, provider = "ollama" }: { children: React.Re
     <div className="app-shell">
       <aside className="side-nav" aria-label="주요 메뉴">
         <Link href="/" className="brand-lockup" aria-label="ToneTalk 홈">
-          <span className="brand-mark"><Sparkles size={20} /></span>
+          <span className="brand-mark brand-mark-image" aria-hidden="true">
+            <Image className="brand-logo-image" src="/tonetalk-logo.png" width={1024} height={559} alt="" priority />
+          </span>
           <span>ToneTalk</span>
         </Link>
         <nav className="nav-list">

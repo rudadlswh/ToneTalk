@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useAiProvider } from "@/components/ai-provider";
 import { useToast } from "@/hooks/use-toast";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -18,7 +17,6 @@ import {
   LockKeyhole,
   Server,
   Sparkles,
-  UserRound,
 } from "lucide-react";
 import { readJson } from "@/lib/api";
 import type { ProfileDto, ProfileStatsDto } from "@/lib/dto";
@@ -158,6 +156,8 @@ export function ProfileWorkspace() {
         <div><span className="stat-icon is-yellow"><Flame size={19} /></span><strong>{stats.streakDays}</strong><small>연속 학습일</small></div>
       </section>
 
+      <StudyPointsHistory />
+
       <div className="profile-grid">
         <section className="settings-panel">
           <div className="panel-heading">
@@ -211,14 +211,14 @@ export function ProfileWorkspace() {
             <div className="service-row"><span className="service-icon"><Server size={18} /></span><div><strong>{provider === "gemini" ? "Gemini" : "Ollama"}</strong><small>{provider === "gemini" ? "API 연결 확인 · 잔여 한도는 별도" : "로컬 번역 모델"}</small></div><span className={`service-status ${healthLoading ? "" : health?.ollama ? "is-online" : "is-offline"}`}>{healthLoading ? "확인 중" : health?.ollama ? "정상" : "연결 안 됨"}</span></div>
           </section>
 
-          <section className="privacy-panel">
-            <span className="privacy-icon"><UserRound size={20} /></span>
-            <div><strong>내 계정에 보관되는 학습 기록</strong><p>저장 문장과 학습 기록은 계정별로 보관됩니다. {provider === "gemini" ? "AI 입력은 Google Gemini로 전송됩니다. 무료 등급 입력·출력은 제품 개선에 사용될 수 있으므로 민감한 정보를 입력하지 마세요." : "번역은 사설 Ollama에서 처리됩니다."}</p></div>
-          </section>
+          {/*<section className="privacy-panel">*/}
+          {/*  <span className="privacy-icon"><UserRound size={20} /></span>*/}
+          {/*  <div><strong>내 계정에 보관되는 학습 기록</strong><p>저장 문장과 학습 기록은 계정별로 보관됩니다. {provider === "gemini" ? "AI 입력은 Google Gemini로 전송됩니다. 무료 등급 입력·출력은 제품 개선에 사용될 수 있으므로 민감한 정보를 입력하지 마세요." : "번역은 사설 Ollama에서 처리됩니다."}</p></div>*/}
+          {/*</section>*/}
         </aside>
       </div>
-      <StudyPointsHistory />
-      <Link className="practice-review-link" href="/study/mistakes"><Brain size={21} /><span><strong>오답 복습으로 이어가기</strong><small>틀린 퀴즈·퍼즐을 유형과 어투별로 모아 다시 풀어보세요.</small></span></Link>
+
+     {/*<Link className="practice-review-link" href="/study/mistakes"><Brain size={21} /><span><strong>오답 복습으로 이어가기</strong><small>틀린 퀴즈·퍼즐을 유형과 어투별로 모아 다시 풀어보세요.</small></span></Link>*/}
       {toast && <div className="toast" role="status"><Check size={17} />{toast}</div>}
     </div>
   );
