@@ -166,7 +166,7 @@ export function LyricsWorkspace() {
           <p className="lyrics-note">발음은 번역문이 아닌 <strong>원문 가사</strong>의 읽는 법입니다. AI 번역과 발음은 부정확할 수 있고, 실제 노래의 발음·박자와 다를 수 있어요.</p>
           <p className="lyrics-note">번역 후 각 줄의 <strong>단어 · 문법 자세히 보기</strong>를 누르면 일본어 후리가나와 한국어 학습 해설을 추가로 불러옵니다.</p>
           {!started ? <div className="lyrics-empty"><Music2 size={36} /><h3>좋아하는 가사로 시작하세요</h3><p>원문 → 번역 → 발음을 함께 볼 수 있어요.</p></div> : <>
-            <div className="lyrics-progress" role="status">{busy ? <LoaderCircle size={16} className="spin" /> : finished ? <Check size={16} /> : null}{completed} / {nonempty.length}줄 완료{busy && " · 2줄씩 번역 중"}</div>
+            <div className="lyrics-progress" role="status">{busy ? <LoaderCircle size={16} className="spin" /> : finished ? <Check size={16} /> : null}{completed} / {nonempty.length}줄 완료{busy && " · 최대 10줄씩 번역 중"}</div>
             {busy && <p className="lyrics-note">로컬 AI 성능에 따라 한 묶음에 1분 이상 걸릴 수 있어요.</p>}
             <div className="lyrics-lines">{lines.map((line) => {
               if (!line.text) return <div className="lyrics-stanza-break" aria-hidden="true" key={line.id} />;

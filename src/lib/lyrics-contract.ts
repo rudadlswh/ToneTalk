@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { languageCodes, sourceLanguageCodes } from "@/lib/languages";
 
-export const lyricsLimits = { characters: 6000, lines: 80, lineLength: 200, batch: 2 } as const;
+export const lyricsLimits = { characters: 6000, lines: 80, lineLength: 200, batch: 10 } as const;
 
 // Keep blank lines and repeated choruses in their original positions.
 export function splitLyrics(text: string) {

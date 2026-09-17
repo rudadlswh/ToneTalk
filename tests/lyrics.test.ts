@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lyricsInputError, lyricsRequestSchema, parseLyricsReply, splitLyrics } from "@/lib/lyrics-contract";
+import { lyricsInputError, lyricsLimits, lyricsRequestSchema, parseLyricsReply, splitLyrics } from "@/lib/lyrics-contract";
 
 const input = lyricsRequestSchema.parse({ lines: [{ id: 0, text: "Morning light" }, { id: 2, text: "Morning light" }] });
 const line = { id: 0, sourceLanguage: "en", translation: "아침 햇살", romanization: "Morning light", hangulPronunciation: "모닝 라이트" };
@@ -17,7 +17,9 @@ describe("lyrics contracts", () => {
   });
   it("defaults to auto source/Korean target and rejects excess or duplicate batch ids", () => {
     expect(input).toMatchObject({ sourceLanguage: "auto", targetLanguage: "ko" });
-    expect(lyricsRequestSchema.safeParse({ lines: [...input.lines, { id: 3, text: "Third" }] }).success).toBe(false);
+    const fullBatch = Array.from({ length: lyricsLimits.batch }, (_, id) => ({ id, text: `Line ${id}` }));
+    expect(lyricsRequestSchema.safeParse({ lines: fullBatch }).success).toBe(true);
+    expect(lyricsRequestSchema.safeParse({ lines: [...fullBatch, { id: lyricsLimits.batch, text: "Excess" }] }).success).toBe(false);
     expect(lyricsRequestSchema.safeParse({ lines: [input.lines[0], input.lines[0]] }).success).toBe(false);
     expect(lyricsRequestSchema.safeParse({ lines: [{ id: 0, text: "  " }] }).success).toBe(false);
   });
