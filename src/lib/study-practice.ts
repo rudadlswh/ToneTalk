@@ -74,14 +74,26 @@ export function isPuzzleCorrect(words: string[], answer: string[]) {
   return words.length === answer.length && words.every((word, index) => word === answer[index]);
 }
 
-export const scenarios = {
+export const scenarioIds = [
+  "cafe", "restaurant", "shopping", "directions", "hotel",
+  "airport", "meeting", "interview", "support", "friends",
+] as const;
+
+export const scenarios: Record<typeof scenarioIds[number], { label: string; role: string; goal: string; situation: string }> = {
   cafe: { label: "카페 주문", role: "a cafe barista", goal: "음료와 크기를 정하고 공손하게 주문해 보세요.", situation: "The learner is ordering a drink at your cafe. Ask about their order." },
+  restaurant: { label: "식당에서 주문", role: "a restaurant server", goal: "메뉴를 묻고 원하는 음식과 요청 사항을 자연스럽게 전달해 보세요.", situation: "Help the learner choose and order a meal. Ask one practical follow-up question at a time." },
+  shopping: { label: "쇼핑과 교환", role: "a store clerk", goal: "상품의 색상과 크기를 묻고 교환이나 결제를 요청해 보세요.", situation: "The learner is shopping and may ask about size, color, price, payment, or an exchange." },
+  directions: { label: "길 묻기", role: "a helpful local resident", goal: "목적지까지 가는 길과 교통편을 묻고 안내를 확인해 보세요.", situation: "Give the learner clear directions to a nearby destination and check that they understood." },
+  hotel: { label: "호텔 체크인", role: "a hotel receptionist", goal: "예약을 확인하고 객실이나 편의시설에 관해 요청해 보세요.", situation: "Handle the learner's hotel check-in and one realistic request about the room or facilities." },
+  airport: { label: "공항 수속", role: "an airline check-in agent", goal: "체크인하면서 좌석과 수하물에 필요한 정보를 확인해 보세요.", situation: "Guide the learner through airport check-in, including seat preference and baggage questions." },
   meeting: { label: "비즈니스 회의", role: "a colleague in a project meeting", goal: "프로젝트 일정을 제안하고 상대의 의견을 물어보세요.", situation: "Discuss a project deadline professionally with the learner." },
+  interview: { label: "취업 면접", role: "a job interviewer", goal: "경험과 강점을 설명하고 직무에 관한 질문에 답해 보세요.", situation: "Conduct a supportive job interview. Ask one concise question about the learner's experience or strengths." },
+  support: { label: "고객 문의", role: "a customer support agent", goal: "제품이나 서비스 문제를 설명하고 해결 방법을 요청해 보세요.", situation: "Help the learner report a product or service problem, clarify the issue, and agree on a next step." },
   friends: { label: "친구와 약속", role: "a close friend", goal: "친구에게 주말 계획을 제안하고 약속을 잡아보세요.", situation: "Make weekend plans with the learner in a friendly casual tone." },
-} as const;
+};
 
 export const roleplayRequestSchema = z.object({
-  scenario: z.enum(["cafe", "meeting", "friends"]),
+  scenario: z.enum(scenarioIds),
   language: z.enum(languageCodes),
   messages: z.array(z.object({
     role: z.enum(["user", "assistant"]),

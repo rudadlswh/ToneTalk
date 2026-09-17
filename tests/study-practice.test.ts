@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { tones } from "@/lib/translation-contract";
-import { isPuzzleCorrect, matchesPracticeLanguage, puzzleWords, quizOptions, roleplayReplySchema, roleplayRequestSchema, shuffle } from "@/lib/study-practice";
+import { isPuzzleCorrect, matchesPracticeLanguage, puzzleWords, quizOptions, roleplayReplySchema, roleplayRequestSchema, scenarioIds, scenarios, shuffle } from "@/lib/study-practice";
 
 describe("study practice", () => {
   it("shuffles without mutating or losing duplicate tokens", () => {
@@ -33,6 +33,13 @@ describe("study practice", () => {
 });
 
 describe("roleplay contracts", () => {
+  it("supports varied everyday, travel, and work scenarios", () => {
+    expect(scenarioIds).toHaveLength(10);
+    expect(scenarioIds.every(id => id.length <= 12 && scenarios[id].goal.length > 0)).toBe(true);
+    for (const scenario of scenarioIds) {
+      expect(roleplayRequestSchema.safeParse({ scenario, language: "en", messages: [{ role: "user", content: "Hello" }] }).success).toBe(true);
+    }
+  });
   it("rejects Korean suggestions for Japanese practice", () => {
     expect(matchesPracticeLanguage("어떤 종류의 커피를 드릴까요?", "ja")).toBe(false);
     expect(matchesPracticeLanguage("コーヒーを一杯お願いします。", "ja")).toBe(true);
