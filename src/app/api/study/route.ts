@@ -1,3 +1,4 @@
+import { getRequestId, logFailure } from "@/server/diagnostics";
 import { z, ZodError } from "zod";
 import { jsonError } from "@/lib/api";
 import { getStudySummary, listDueStudyItems } from "@/server/study";
@@ -12,7 +13,7 @@ const querySchema = z.object({
 });
 
 async function handleGET(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const url = new URL(request.url);
     const query = querySchema.parse({
@@ -30,7 +31,7 @@ async function handleGET(request: Request) {
     if (error instanceof ZodError) {
       return jsonError(requestId, 400, "VALIDATION_ERROR", "학습 조건을 확인해 주세요.");
     }
-    console.error("study_list_failed", { requestId, error });
+    logFailure("study_list_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "학습 카드를 불러오지 못했습니다.", true);
   }
 }

@@ -9,11 +9,27 @@ vi.mock("@/server/db", () => ({ db: {}, pool: {} }));
 
 import { AuthenticationError, getAuthenticatedUser, requestOwner, verifyUser, withAuth } from "@/server/auth";
 import { isSameOriginRequest, safeAuthNext } from "@/lib/auth-navigation";
+import { getRequestId } from "@/server/diagnostics";
 
 const user = (id: string) => ({ id, email: `${id}@example.invalid`, email_confirmed_at: "2026-01-01", is_anonymous: false });
 beforeEach(() => { mocks.getUser.mockReset(); });
 
 describe("verified request identity", () => {
+  it("correlates safe auth outages and successful handler IDs", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      mocks.getUser.mockResolvedValue({ data: { user: null }, error: { status: 503, code: "unexpected_failure", message: "private-token" } });
+      const response = await withAuth(async () => new Response())(new Request("https://app.test/api/profile"));
+      const body = await response.json();
+      expect(response.status).toBe(503);
+      expect(log).toHaveBeenCalledWith("auth_unavailable", expect.objectContaining({ requestId: body.requestId, status: 503, code: "unexpected_failure" }));
+      expect(JSON.stringify(log.mock.calls)).not.toContain("private-token");
+      mocks.getUser.mockResolvedValue({ data: { user: user("a") }, error: null });
+      const success = await withAuth(async () => Response.json({ requestId: getRequestId() }))(new Request("https://app.test/api/profile", { headers: { "x-request-id": "forged" } }));
+      expect((await success.json()).requestId).toBe(success.headers.get("x-request-id"));
+      expect(success.headers.get("x-request-id")).not.toBe("forged");
+    } finally { log.mockRestore(); }
+  });
   it("rejects missing, invalid, unconfirmed and anonymous users without a fixed owner fallback", async () => {
     for (const value of [null, { ...user("a"), email_confirmed_at: null }, { ...user("a"), is_anonymous: true }]) {
       mocks.getUser.mockResolvedValue({ data: { user: value }, error: null });

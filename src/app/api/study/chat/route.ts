@@ -1,3 +1,4 @@
+import { getRequestId, logFailure } from "@/server/diagnostics";
 import { ZodError } from "zod";
 import { aiErrorResponse } from "@/server/ai-error";
 import { jsonError } from "@/lib/api";
@@ -22,7 +23,7 @@ async function handlePOST(request: Request) {
 }
 
 async function handlePost(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin) {
     return jsonError(requestId, 403, "INVALID_ORIGIN", "같은 사이트에서 요청해 주세요.");
@@ -59,7 +60,7 @@ async function handlePost(request: Request) {
     if (error instanceof ZodError || error instanceof SyntaxError) return jsonError(requestId, 400, "INVALID_INPUT", "대화 내용과 언어를 확인해 주세요.");
     if (error instanceof OllamaUnavailableError) return jsonError(requestId, 503, "OLLAMA_UNAVAILABLE", "AI 응답을 받지 못했어요. Ollama 연결을 확인하거나 다시 시도해 주세요.", true);
     if (error instanceof OllamaOutputError) return jsonError(requestId, 502, "INVALID_MODEL_OUTPUT", "AI 답변 형식을 정리하지 못했어요. 다시 시도해 주세요.", true);
-    console.error("study_chat_failed", { requestId, errorType: error instanceof Error ? error.name : "unknown" });
+    logFailure("study_chat_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "대화를 진행하지 못했어요.", true);
   }
 }

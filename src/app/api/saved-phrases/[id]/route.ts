@@ -1,3 +1,4 @@
+import { getRequestId, logFailure } from "@/server/diagnostics";
 import { z } from "zod";
 import { jsonError } from "@/lib/api";
 import { deleteSavedPhrase } from "@/server/saved-phrases";
@@ -13,7 +14,7 @@ async function handleDELETE(
   _request: Request,
   context: RouteContext<"/api/saved-phrases/[id]">,
 ) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   const { id } = await context.params;
   const parsedId = idSchema.safeParse(id);
   if (!parsedId.success) {
@@ -27,7 +28,7 @@ async function handleDELETE(
     }
     return new Response(null, { status: 204 });
   } catch (error) {
-    console.error("saved_phrase_delete_failed", { requestId, error });
+    logFailure("saved_phrase_delete_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "문장을 삭제하지 못했습니다.", true);
   }
 }

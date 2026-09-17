@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from "react";
 import { Sparkles } from "lucide-react";
 import { safeAuthNext } from "@/lib/auth-navigation";
+import { readJson } from "@/lib/api";
 
 export function LoginForm({ next, error }: { next: string; error: string | null }) {
   const [signup, setSignup] = useState(false);
@@ -18,8 +19,7 @@ export function LoginForm({ next, error }: { next: string; error: string | null 
       const response = await fetch(`/api/auth/${signup ? "signup" : "login"}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: form.get("username"), password }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error?.message ?? "로그인에 실패했습니다.");
+      await readJson(response, { redirectOnUnauthorized: false });
       window.location.replace(`/auth/complete?next=${encodeURIComponent(safeAuthNext(next))}`);
     } catch (error) { setMessage(error instanceof Error ? error.message : "잠시 후 다시 시도해 주세요."); }
     finally { setPending(false); }

@@ -1,3 +1,4 @@
+import { getRequestId, logFailure } from "@/server/diagnostics";
 import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 import { z, ZodError } from "zod";
 import { jsonError } from "@/lib/api";
@@ -15,7 +16,7 @@ const reviewSchema = z.object({
 });
 
 async function handlePOST(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const input = reviewSchema.parse(await readLimitedJson(request, 4096));
     const progress = await reviewStudyItem(input.savedPhraseId, input.rating);
@@ -33,7 +34,7 @@ async function handlePOST(request: Request) {
     if (error instanceof ZodError) {
       return jsonError(requestId, 400, "VALIDATION_ERROR", "복습 평가를 확인해 주세요.");
     }
-    console.error("study_review_failed", { requestId, error });
+    logFailure("study_review_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "복습 결과를 저장하지 못했습니다.", true);
   }
 }

@@ -1,3 +1,4 @@
+import { getRequestId } from "@/server/diagnostics";
 import { ZodError } from "zod";
 import { jsonError } from "@/lib/api";
 import { parseStudyPointsCursor, studyPointInputSchema, studyPointsAccountHeader } from "@/lib/study-points";
@@ -16,7 +17,7 @@ async function accountChanged(request: Request) {
 }
 
 export const GET = withAuth(async (request) => {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     if (await accountChanged(request)) return jsonError(requestId, 403, "ACCOUNT_CHANGED", "학습한 계정으로 다시 로그인해 주세요. 미저장 포인트는 보관됩니다.");
     const cursor = parseStudyPointsCursor(new URL(request.url).searchParams.get("cursor"));
@@ -29,7 +30,7 @@ export const GET = withAuth(async (request) => {
 });
 
 export const POST = withAuth(async (request) => {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     if (await accountChanged(request)) return jsonError(requestId, 403, "ACCOUNT_CHANGED", "학습한 계정으로 다시 로그인해 주세요. 미저장 포인트는 보관됩니다.");
     const input = studyPointInputSchema.parse(await readLimitedJson(request, 2048));

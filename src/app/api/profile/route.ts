@@ -1,3 +1,4 @@
+import { getRequestId, logFailure } from "@/server/diagnostics";
 import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 import { ZodError } from "zod";
 import { jsonError } from "@/lib/api";
@@ -11,7 +12,7 @@ export const GET = withAuth(handleGET);
 export const PATCH = withAuth(handlePATCH);
 
 async function handleGET() {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const data = await getProfile();
     return Response.json(
@@ -19,13 +20,13 @@ async function handleGET() {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    console.error("profile_read_failed", { requestId, error });
+    logFailure("profile_read_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "프로필을 불러오지 못했습니다.", true);
   }
 }
 
 async function handlePATCH(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const input = updateProfileSchema.parse(await readLimitedJson(request, 4096));
     const data = await updateProfile(input);
@@ -44,7 +45,7 @@ async function handlePATCH(request: Request) {
         error.issues[0]?.message ?? "프로필 정보를 확인해 주세요.",
       );
     }
-    console.error("profile_update_failed", { requestId, error });
+    logFailure("profile_update_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "프로필을 저장하지 못했습니다.", true);
   }
 }

@@ -1,3 +1,4 @@
+import { getRequestId, logFailure } from "@/server/diagnostics";
 import { ZodError } from "zod";
 import { aiErrorResponse } from "@/server/ai-error";
 import { jsonError } from "@/lib/api";
@@ -24,7 +25,7 @@ async function handlePOST(request: Request) {
 }
 
 async function handlePost(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > 10_000) {
     return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "요청 크기가 너무 큽니다.");
@@ -97,7 +98,7 @@ async function handlePost(request: Request) {
         true,
       );
     }
-    console.error("translation_failed", { requestId, error });
+    logFailure("translation_failed", requestId, error);
     return jsonError(
       requestId,
       500,

@@ -1,3 +1,4 @@
+import { getRequestId } from "@/server/diagnostics";
 import { withAuth, getAuthenticatedUser } from "@/server/auth";
 import { getAiUsage } from "@/server/ai-usage";
 import { aiErrorResponse } from "@/server/ai-error";
@@ -6,7 +7,7 @@ import { studyPointsAccountHeader } from "@/lib/study-points";
 
 export const runtime = "nodejs";
 export const GET = withAuth(async request => {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const expected = request.headers.get(studyPointsAccountHeader);
     if (expected !== null && expected !== (await getAuthenticatedUser()).id) return jsonError(requestId, 403, "ACCOUNT_CHANGED", "현재 로그인 계정이 바뀌었어요. 새로고침해 주세요.");

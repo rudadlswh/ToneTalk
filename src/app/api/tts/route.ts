@@ -1,3 +1,4 @@
+import { getRequestId, logFailure } from "@/server/diagnostics";
 import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 import { ZodError } from "zod";
 import { jsonError } from "@/lib/api";
@@ -14,7 +15,7 @@ export const runtime = "nodejs";
 export const POST = withAuth(handlePOST);
 
 async function handlePOST(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > 5_000) {
     return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "읽을 문장이 너무 깁니다.");
@@ -64,7 +65,7 @@ async function handlePOST(request: Request) {
         true,
       );
     }
-    console.error("tts_failed", { requestId, error });
+    logFailure("tts_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "음성을 만들지 못했습니다.", true);
   }
 }

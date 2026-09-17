@@ -1,3 +1,4 @@
+import { getRequestId } from "@/server/diagnostics";
 import { getAuthConfig } from "@/server/supabase-auth";
 import { jsonError } from "@/lib/api";
 
@@ -10,6 +11,6 @@ export async function GET() {
       provider: process.env.AI_PROVIDER === "gemini" ? "gemini" : "ollama" },
       { headers: { "Cache-Control": "no-store" } });
   } catch {
-    return jsonError(crypto.randomUUID(), 503, "AUTH_UNAVAILABLE", "로그인 설정을 불러오지 못했습니다.", true);
+    return jsonError(getRequestId(), 503, "AUTH_UNAVAILABLE", "로그인 설정을 불러오지 못했습니다.", true);
   }
 }

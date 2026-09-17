@@ -190,7 +190,7 @@ export async function generateTranslation(
     }
     console.warn("ollama_output_invalid", {
       attempt: 1,
-      reason: error instanceof Error ? error.message : "unknown output error",
+      reason: "invalid_model_output",
     });
     throw new OllamaOutputError(
       error instanceof Error ? error.message : "Invalid Ollama output",

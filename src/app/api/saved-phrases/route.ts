@@ -1,3 +1,4 @@
+import { getRequestId, logFailure } from "@/server/diagnostics";
 import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 import { z, ZodError } from "zod";
 import { jsonError } from "@/lib/api";
@@ -18,7 +19,7 @@ const querySchema = z.object({
 });
 
 async function handleGET(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const url = new URL(request.url);
     const query = querySchema.parse({
@@ -39,13 +40,13 @@ async function handleGET(request: Request) {
     if (error instanceof ZodError) {
       return jsonError(requestId, 400, "VALIDATION_ERROR", "검색 조건을 확인해 주세요.");
     }
-    console.error("saved_phrases_list_failed", { requestId, error });
+    logFailure("saved_phrases_list_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "저장 문장을 불러오지 못했습니다.", true);
   }
 }
 
 async function handlePOST(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const input = saveSchema.parse(await readLimitedJson(request, 4096));
     const result = await savePhrase(input.variantId);
@@ -62,7 +63,7 @@ async function handlePOST(request: Request) {
     if (error instanceof ZodError) {
       return jsonError(requestId, 400, "VALIDATION_ERROR", "번역 결과 ID가 올바르지 않습니다.");
     }
-    console.error("saved_phrase_create_failed", { requestId, error });
+    logFailure("saved_phrase_create_failed", requestId, error);
     return jsonError(requestId, 500, "INTERNAL_ERROR", "문장을 저장하지 못했습니다.", true);
   }
 }

@@ -1,3 +1,4 @@
+import { getRequestId } from "@/server/diagnostics";
 import { ZodError } from "zod";
 import { withAuth, getAuthenticatedUser } from "@/server/auth";
 import { aiErrorResponse } from "@/server/ai-error";
@@ -35,7 +36,7 @@ function failure(error: unknown, requestId: string, generating = false) {
 }
 
 export const GET = withAuth(async request => {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     await assertAccount(request);
     const kind = dailyKindSchema.parse(new URL(request.url).searchParams.get("kind"));
@@ -45,7 +46,7 @@ export const GET = withAuth(async request => {
 });
 
 export const POST = withAuth(request => withRequestBudget(request, async () => {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const ownerId = await assertAccount(request);
     // Accept old clients' bounded exclude field, but only trust DB history.
@@ -61,7 +62,7 @@ export const POST = withAuth(request => withRequestBudget(request, async () => {
 }));
 
 export const PUT = withAuth(async request => {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const ownerId = await assertAccount(request);
     const input = dailyAttemptInputSchema.parse(await readLimitedJson(request, 2048));

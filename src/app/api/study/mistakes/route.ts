@@ -1,3 +1,4 @@
+import { getRequestId } from "@/server/diagnostics";
 import { ZodError } from "zod";
 import { jsonError } from "@/lib/api";
 import { dailyAttemptInputSchema } from "@/lib/daily-ai-practice";
@@ -13,7 +14,7 @@ export const GET = withAuth(handle);
 export const POST = withAuth(handle);
 
 async function handle(request: Request) {
-  const requestId = crypto.randomUUID();
+  const requestId = getRequestId();
   try {
     const user = await getAuthenticatedUser();
     const account = request.headers.get(studyPointsAccountHeader);
