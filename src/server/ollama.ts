@@ -1,5 +1,7 @@
 import "server-only";
-import { postGemini, checkGemini, GeminiError } from "@/server/gemini";
+import { postGemini, checkGemini } from "@/server/gemini";
+import { AiServiceError, retryAfterSeconds } from "@/server/ai-error";
+import { withAiUsage } from "@/server/ai-usage";
 import { buildPrompt } from "@/lib/translation-prompt";
 import { z } from "zod";
 import { lyricExplanationSchema, parseLyricExplanation, type LyricExplanationRequest } from "@/lib/lyric-explanation";
@@ -58,16 +60,30 @@ function buildOllamaUrl(path: string) {
 }
 
 
-async function postOllama(body: unknown, signal: AbortSignal) {
-  if (getEnv().AI_PROVIDER === "gemini") return postGemini(body, signal);
-  return fetch(buildOllamaUrl("/api/chat"), {
-    method: "POST", headers: buildOllamaHeaders(true), cache: "no-store",
-    signal, body: JSON.stringify(body),
+export async function postOllama(body: unknown, signal: AbortSignal) {
+  return withAiUsage(signal, async () => {
+    if (getEnv().AI_PROVIDER === "gemini") return postGemini(body, signal);
+    try {
+      const response = await fetch(buildOllamaUrl("/api/chat"), {
+        method: "POST", headers: buildOllamaHeaders(true), cache: "no-store",
+        signal, body: JSON.stringify(body),
+      });
+      if (response.status === 429) {
+        const wait = retryAfterSeconds(response.headers.get("retry-after"));
+        throw new AiServiceError(429, "AI_QUOTA_EXCEEDED", "AI 요청이 몰렸어요. 잠시 후 다시 시도해 주세요.", wait, wait);
+      }
+      if (!response.ok) throw new AiServiceError(503, "OLLAMA_UNAVAILABLE", "Ollama 연결 또는 서비스 상태를 확인해 주세요.", 30, 30);
+      return response;
+    } catch (error) {
+      if (error instanceof AiServiceError) throw error;
+      if (signal.aborted) throw new AiServiceError(signal.reason?.name === "TimeoutError" ? 504 : 499, "AI_TIMEOUT", "AI 요청이 취소되었거나 응답 시간이 초과됐어요.", 10, 0, true);
+      throw new AiServiceError(503, "OLLAMA_UNAVAILABLE", "Ollama에 연결하지 못했어요. 입력은 유지됩니다.", 30, 30, true);
+    }
   });
 }
 
 function rethrowGenerationError(error: unknown, message: string): never {
-  if (error instanceof GeminiError) throw error;
+  if (error instanceof AiServiceError) throw error;
   if (error instanceof OllamaOutputError) throw error;
   throw new OllamaUnavailableError(message);
 }
@@ -76,7 +92,6 @@ async function callOllama(
   sourceText: string,
   sourceLanguage: SourceLanguage,
   targetLanguage: TargetLanguage,
-  retry: boolean,
 ): Promise<OllamaChatResponse> {
   const env = getEnv();
   const controller = new AbortController();
@@ -101,7 +116,6 @@ async function callOllama(
               sourceText,
               sourceLanguage,
               targetLanguage,
-              retry,
             ),
           },
         ],
@@ -123,7 +137,7 @@ async function callOllama(
     });
     return data;
   } catch (error) {
-    if (error instanceof OllamaUnavailableError || error instanceof GeminiError) throw error;
+    if (error instanceof OllamaUnavailableError || error instanceof AiServiceError) throw error;
     if (error instanceof Error && error.name === "AbortError") {
       throw new OllamaUnavailableError("Ollama request timed out");
     }
@@ -143,56 +157,45 @@ export async function generateTranslation(
   latencyMs: number;
 }> {
   const startedAt = Date.now();
-  let lastError: unknown;
-
-  // A bad output no longer silently doubles CPU time. Let the user explicitly retry.
-  for (let attempt = 0; attempt < 1; attempt += 1) {
-    try {
-      const response = await callOllama(
-        sourceText,
-        sourceLanguage,
-        targetLanguage,
-        attempt > 0,
-      );
-      if (!response.message?.content) {
-        throw new OllamaOutputError("Ollama returned an empty response");
-      }
-
-      const parsedJson = JSON.parse(response.message.content) as unknown;
-      const parsed = ollamaTranslationSchema.parse(parsedJson);
-      if (sourceLanguage !== "auto" && parsed.sourceLanguage !== sourceLanguage) {
-        throw new OllamaOutputError("The model returned the wrong source language");
-      }
-      if (parsed.sourceLanguage === targetLanguage) {
-        throw new SameLanguageError("Source and target languages are identical");
-      }
-      const variants = normalizeVariants(parsed);
-      if (!variants.every((variant) => looksLikeTargetLanguage(variant.translatedText, sourceText, targetLanguage))) {
-        throw new OllamaOutputError("The model copied the source or used the wrong language");
-      }
-      return {
-        sourceLanguage: parsed.sourceLanguage,
-        variants,
-        latencyMs: Date.now() - startedAt,
-      };
-    } catch (error) {
-      if (
-        error instanceof GeminiError || error instanceof OllamaUnavailableError ||
-        error instanceof SameLanguageError
-      ) {
-        throw error;
-      }
-      lastError = error;
-      console.warn("ollama_output_invalid", {
-        attempt: attempt + 1,
-        reason: error instanceof Error ? error.message : "unknown output error",
-      });
+  // One upstream call per request; invalid output requires an explicit user retry.
+  try {
+    const response = await callOllama(sourceText, sourceLanguage, targetLanguage);
+    if (!response.message?.content) {
+      throw new OllamaOutputError("Ollama returned an empty response");
     }
-  }
 
-  throw new OllamaOutputError(
-    lastError instanceof Error ? lastError.message : "Invalid Ollama output",
-  );
+    const parsedJson = JSON.parse(response.message.content) as unknown;
+    const parsed = ollamaTranslationSchema.parse(parsedJson);
+    if (sourceLanguage !== "auto" && parsed.sourceLanguage !== sourceLanguage) {
+      throw new OllamaOutputError("The model returned the wrong source language");
+    }
+    if (parsed.sourceLanguage === targetLanguage) {
+      throw new SameLanguageError("Source and target languages are identical");
+    }
+    const variants = normalizeVariants(parsed);
+    if (!variants.every((variant) => looksLikeTargetLanguage(variant.translatedText, sourceText, targetLanguage))) {
+      throw new OllamaOutputError("The model copied the source or used the wrong language");
+    }
+    return {
+      sourceLanguage: parsed.sourceLanguage,
+      variants,
+      latencyMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    if (
+      error instanceof AiServiceError || error instanceof OllamaUnavailableError ||
+      error instanceof SameLanguageError
+    ) {
+      throw error;
+    }
+    console.warn("ollama_output_invalid", {
+      attempt: 1,
+      reason: error instanceof Error ? error.message : "unknown output error",
+    });
+    throw new OllamaOutputError(
+      error instanceof Error ? error.message : "Invalid Ollama output",
+    );
+  }
 }
 
 function looksLikeTargetLanguage(

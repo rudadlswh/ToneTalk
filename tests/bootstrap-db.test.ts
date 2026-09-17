@@ -14,7 +14,7 @@ it.skipIf(process.env.BOOTSTRAP_DB_TEST !== "1")("bootstraps an empty isolated s
     await client.query("BEGIN");
     await client.query(ddl);
     const tables = await client.query("select relname, relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname=$1 and relkind='r'", [schema]);
-    expect(tables.rows).toHaveLength(8);
+    expect(tables.rows).toHaveLength(14);
     expect(tables.rows.every((row) => row.relrowsecurity)).toBe(true);
   } finally {
     await client.query("ROLLBACK");

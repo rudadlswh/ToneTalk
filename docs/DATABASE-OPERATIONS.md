@@ -8,11 +8,18 @@
 
 출력 SQL을 검토한 후 **빈 대상 스키마에서만** Supabase SQL Editor로 실행한다. 전체가 한 트랜잭션이며 기존 테이블이 있으면 실패한다. 기존 환경에 초기화 SQL을 재실행하거나 테이블을 지워 맞추지 않는다. SQL 실행 역할과 앱 연결 역할이 다르면 필요한 서버 역할 권한을 별도로 검토해야 한다. 앱은 서버의 privileged SQL과 owner 조건으로 접근하며 브라우저 Data API 접근을 열지 않는다.
 
-검증: `BOOTSTRAP_DB_TEST=1 node --env-file=.env.local node_modules/vitest/vitest.mjs run tests/bootstrap-db.test.ts`는 명시적 dev 연결에서 고유 이름의 임시 스키마를 만들고, 8개 테이블/RLS 확인 후 롤백한다. 2026-09-10 실제 개발 DB에서 통과했다. 전용 빈 DB 전체를 생성한 테스트는 아니다.
+검증: `BOOTSTRAP_DB_TEST=1 node --env-file=.env.local node_modules/vitest/vitest.mjs run tests/bootstrap-db.test.ts`는 명시적 dev 연결에서 고유 이름의 임시 스키마를 만들고, 포인트 원장·일일 문제·답안·AI 사용량·채팅 진행·오답 복습을 포함한 14개 테이블/RLS 확인 후 롤백한다. 전용 빈 DB 전체를 생성한 테스트는 아니다.
+
+스터디 포인트의 추가 마이그레이션과 검증·롤백 절차는 [STUDY-POINTS.md](STUDY-POINTS.md)를 따른다.
+오늘의 문제·풀이 결과의 추가 마이그레이션과 API는 [STUDY-PRACTICE.md](STUDY-PRACTICE.md)를 따른다. `20260915081206_daily_practice.sql`은 2026-09-15에 개발 스키마에만 적용했다. 운영에는 앱 배포 전에 별도 적용해야 한다.
+AI 사용량 테이블의 `20260915114541_ai_usage_limits.sql`도 같은 날 개발 스키마에만 적용했다. 제한 정책·공유 범위·운영 적용은 [AI-USAGE.md](AI-USAGE.md)를 따른다.
+5단계 `20260915140000_study_reward_proof.sql`도 개발 스키마에만 적용했다. 운영 배포 전 세 변경의 미적용분을 순서대로 적용한다. 마지막 변경은 일일 문제의 unique index도 바꾸므로 이전 앱과의 호환성·점검 배포 절차를 [STUDY-REWARD-PROOF.md](STUDY-REWARD-PROOF.md)에서 확인해야 한다.
+6단계 `20260916000000_mistake_review.sql`은 2026-09-16 개발 스키마에만 적용했다. 위 세 변경 이후 미적용분을 이어서 적용한다. 원래 풀이·XP와 별도인 복습 답안 테이블만 추가하며 [MISTAKE-REVIEW.md](MISTAKE-REVIEW.md)를 따른다.
+유형별 하루 1회 XP 제한 `20260916033055_study_daily_reward_limit.sql`도 개발에만 적용했다. 기존 원장을 보존하면서 실제 적립 한국 날짜를 backfill하고 계정·유형·일자 unique index를 추가한다. [적용·호환성 안내](STUDY-POINTS.md)를 확인하고 운영 대상만 지정하여 별도로 적용한다.
 
 ## 기존 환경 업그레이드
 
-기존 `drizzle/`은 legacy public 스키마 이력이다. 현재 private 스키마에 `pnpm db:migrate`로 재생하지 않는다. 앞으로의 변경은 `supabase/migrations/`에 추가 SQL로 작성하고 dev 적용 → 스키마·회귀 테스트 → 운영 백업/복구 계획 확인 → 운영 적용 순서로 진행한다. 이번 정확성/본문 제한 변경은 DB 마이그레이션을 요구하지 않는다. 변경 SQL 적용 여부는 배포 기록에 남긴다.
+기존 `drizzle/`은 legacy public 스키마 이력이다. 현재 private 스키마에 `pnpm db:migrate`로 재생하지 않는다. 변경은 `supabase/migrations/`에 추가 SQL로 작성하고 dev 적용 → 스키마·회귀 테스트 → 운영 백업/복구 계획 확인 → 운영 적용 순서로 진행한다. 변경 SQL 적용 여부는 배포 기록에 남긴다.
 
 ## 같은 Ollama PC를 사용하는 경우
 

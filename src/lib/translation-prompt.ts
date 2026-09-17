@@ -5,7 +5,6 @@ export function buildPrompt(
   sourceText: string,
   sourceLanguage: SourceLanguage,
   targetLanguage: TargetLanguage,
-  retry: boolean,
 ) {
   const target = getLanguage(targetLanguage);
   if (!target) throw new Error("Unsupported target language");
@@ -35,7 +34,7 @@ Pronunciation rules for every result:
 - Pronounce each word as used in the complete sentence. For Japanese Kanji and Chinese Hanzi, use the contextually correct word reading instead of guessing from individual characters.
 - Return both pronunciation values even when the target language already uses Latin letters or Hangul.
 
-Rules: preserve meaning, tense, subject, negation, and certainty. Each tone should sound different. Return JSON only.${retry ? " A previous answer was invalid: check every nested key, the sourceLanguage code, the target language, and both pronunciation formats." : ""}
+Rules: preserve meaning, tense, subject, negation, and certainty. Each tone should sound different. Return JSON only.
 
 Use exactly this JSON shape: {"sourceLanguage":"en","casual":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."},"polite":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."},"formal":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."},"slang":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."},"written":{"translatedText":"...","romanization":"...","hangulPronunciation":"..."}}
 

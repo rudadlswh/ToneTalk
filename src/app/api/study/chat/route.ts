@@ -1,17 +1,20 @@
 import { ZodError } from "zod";
-import { GeminiError } from "@/server/gemini";
+import { aiErrorResponse } from "@/server/ai-error";
 import { jsonError } from "@/lib/api";
-import { roleplayRequestSchema } from "@/lib/study-practice";
-import { generateRoleplayReply, OllamaOutputError, OllamaUnavailableError } from "@/server/ollama";
+import { chatStartSchema, chatTurnSchema } from "@/lib/study-chat";
+import { startStudyChat, submitStudyChat, StudyChatError } from "@/server/study-chat";
+import { OllamaOutputError, OllamaUnavailableError } from "@/server/ollama";
 import { consumeRateLimit } from "@/server/rate-limit";
 import { withRequestBudget, requestSignal } from "@/server/request-budget";
-import { withInferenceSlot, InferenceBusyError } from "@/server/inference-limit";
+import { InferenceBusyError } from "@/server/inference-limit";
 import { readLimitedJson, PayloadTooLargeError } from "@/server/request-body";
 
-import { withAuth } from "@/server/auth";
+import { getAuthenticatedUser, withAuth } from "@/server/auth";
+import { studyPointsAccountHeader } from "@/lib/study-points";
 
 export const runtime = "nodejs";
 export const POST = withAuth(handlePOST);
+export const PUT = withAuth(handlePOST);
 export const maxDuration = 180;
 
 async function handlePOST(request: Request) {
@@ -26,14 +29,27 @@ async function handlePost(request: Request) {
   }
   const key = `study-chat:${request.headers.get("x-forwarded-for") ?? "single-user"}`;
   const rate = consumeRateLimit(key, 6);
-  if (!rate.allowed) return jsonError(requestId, 429, "RATE_LIMITED", `${rate.retryAfterSeconds}초 후 다시 시도해 주세요.`, true);
+  if (!rate.allowed) {
+    const response = jsonError(requestId, 429, "RATE_LIMITED", `${rate.retryAfterSeconds}초 후 다시 시도해 주세요.`, true);
+    response.headers.set("Retry-After", String(rate.retryAfterSeconds));
+    return response;
+  }
 
   try {
-    const input = roleplayRequestSchema.parse(await readLimitedJson(request, 24_000));
-    const result = await withInferenceSlot(() => generateRoleplayReply(input, requestSignal() ?? request.signal));
+    const account = request.headers.get(studyPointsAccountHeader);
+    if (account !== null && account !== (await getAuthenticatedUser()).id) return jsonError(requestId, 403, "ACCOUNT_CHANGED", "대화를 시작한 계정으로 다시 로그인해 주세요.");
+    const body = await readLimitedJson(request, 24_000);
+    const result = request.method === "PUT" ? await startStudyChat(chatStartSchema.parse(body))
+      : await submitStudyChat(chatTurnSchema.parse(body), requestSignal() ?? request.signal);
     return Response.json({ ...result, requestId }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    if (error instanceof GeminiError) return jsonError(requestId, error.status, error.code, error.message, true);
+    if (error instanceof StudyChatError) {
+      const response = jsonError(requestId, error.status, error.code, error.message, error.code === "CHAT_BUSY" || error.status === 429);
+      if (error.code === "CHAT_BUSY" || error.status === 429) response.headers.set("Retry-After", error.status === 429 ? "60" : "3");
+      return response;
+    }
+    const aiFailure = aiErrorResponse(error, requestId);
+    if (aiFailure) return aiFailure;
     if (error instanceof PayloadTooLargeError) return jsonError(requestId, 413, "PAYLOAD_TOO_LARGE", "대화가 너무 깁니다. 새 대화를 시작해 주세요.");
     if (error instanceof InferenceBusyError) {
       const response = jsonError(requestId, 429, "AI_BUSY", "AI가 다른 요청을 처리 중이에요. 잠시 후 다시 보내 주세요.", true);

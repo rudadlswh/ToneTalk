@@ -1,6 +1,10 @@
 import { sql } from "drizzle-orm";
+import type { StudyPointActivity } from "@/lib/study-points";
+import type { DailyAnswer, DailyKind, DailyResult, PracticeSource } from "@/lib/daily-ai-practice";
+import type { PracticePhrase } from "@/lib/study-practice";
 import {
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -195,8 +199,77 @@ export const studyReviewEvents = databaseSchema.table(
   ],
 );
 
-export type TranslationSessionRow = typeof translationSessions.$inferSelect;
-export type TranslationVariantRow = typeof translationVariants.$inferSelect;
+// Append-only learning XP ledger. Retry IDs and daily uniqueness are enforced
+// by PostgreSQL, including concurrent requests from different app instances.
+export const studyPointEvents = databaseSchema.table("study_point_events", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  ownerId: varchar("owner_id", { length: 64 }).notNull()
+    .references(() => appUsers.id, { onDelete: "cascade" }),
+  activity: varchar("activity", { length: 12 }).$type<StudyPointActivity>().notNull(),
+  activityId: varchar("activity_id", { length: 240 }).notNull(),
+  rewardDay: integer("reward_day").notNull(),
+  // DB clock, not the browser or question-set day. NULL is legacy history only.
+  creditedOn: date("credited_on").default(sql`(now() AT TIME ZONE 'Asia/Seoul')::date`),
+  points: integer("points").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("study_point_events_completion_uidx").on(table.ownerId, table.activity, table.activityId, table.rewardDay),
+  uniqueIndex("study_point_events_daily_uidx").on(table.ownerId, table.activity, table.creditedOn),
+  index("study_point_events_owner_created_idx").on(table.ownerId, table.createdAt, table.id),
+  check("study_point_events_reward_check", sql`(${table.activity} = 'quiz' and ${table.points} = 20 and ${table.rewardDay} > 0)
+    or (${table.activity} = 'puzzle' and ${table.points} = 25 and ${table.rewardDay} > 0)
+    or (${table.activity} = 'chat' and ${table.points} = 35 and ${table.rewardDay} = 0)`),
+]);
+
+// One canonical set per account/KST day/activity/source. A short lease fences generation
+// without holding a connection/transaction while the AI provider responds.
+export const dailyPracticeSets = databaseSchema.table("daily_practice_sets", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  ownerId: varchar("owner_id", { length: 64 }).notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  day: integer("day").notNull(),
+  kind: varchar("kind", { length: 12 }).$type<DailyKind>().notNull(),
+  source: varchar("source", { length: 12 }).$type<PracticeSource>().default("daily").notNull(),
+  phrases: jsonb("phrases").$type<PracticePhrase[]>(),
+  generationToken: varchar("generation_token", { length: 36 }),
+  generationExpiresAt: timestamp("generation_expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex("daily_practice_sets_owner_day_kind_source_uidx").on(table.ownerId, table.day, table.kind, table.source),
+  check("daily_practice_sets_kind_day_check", sql`${table.kind} in ('quiz', 'puzzle') and ${table.day} > 0`),
+  check("daily_practice_sets_source_check", sql`${table.source} in ('daily', 'saved')`),
+  check("daily_practice_sets_phrases_check", sql`${table.phrases} is null or (jsonb_typeof(${table.phrases}) = 'array' and jsonb_array_length(${table.phrases}) between 1 and 5 and (${table.source} = 'saved' or jsonb_array_length(${table.phrases}) = 5))`),
+]);
+
+// No conversation text: only server-confirmed progress and transcript digests.
+export const studyChatSessions = databaseSchema.table("study_chat_sessions", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  ownerId: varchar("owner_id", { length: 64 }).notNull().references(() => appUsers.id, { onDelete: "cascade" }),
+  scenario: varchar("scenario", { length: 12 }).notNull(),
+  language: varchar("language", { length: 10 }).notNull(),
+  turns: integer("turns").notNull().default(0),
+  transcriptHash: varchar("transcript_hash", { length: 64 }).notNull(),
+  lastEventId: varchar("last_event_id", { length: 36 }),
+  lastRequestHash: varchar("last_request_hash", { length: 64 }),
+  generationToken: varchar("generation_token", { length: 36 }),
+  generationExpiresAt: timestamp("generation_expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  index("study_chat_sessions_owner_created_idx").on(table.ownerId, table.createdAt),
+  check("study_chat_sessions_turns_check", sql`${table.turns} between 0 and 4`),
+]);
+
+export const dailyPracticeAnswers = databaseSchema.table("daily_practice_answers", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  setId: varchar("set_id", { length: 36 }).notNull().references(() => dailyPracticeSets.id, { onDelete: "cascade" }),
+  questionIndex: integer("question_index").notNull(),
+  attemptNumber: integer("attempt_number").notNull(),
+  answer: jsonb("answer").$type<DailyAnswer>().notNull(),
+  outcome: varchar("outcome", { length: 12 }).$type<DailyResult["outcome"]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex("daily_practice_answers_question_attempt_uidx").on(table.setId, table.questionIndex, table.attemptNumber),
+  check("daily_practice_answers_values_check", sql`${table.questionIndex} between 0 and 4 and ${table.attemptNumber} > 0 and ${table.outcome} in ('correct', 'wrong', 'revealed')`),
+]);
 
 // Server-only runtime data; see supabase/migrations/*_performance_runtime.sql
 // for the additive migration and explicit RLS/revocations in both environments.
@@ -205,6 +278,30 @@ export const inferenceLeases = databaseSchema.table("inference_leases", {
   token: varchar("token", { length: 36 }).notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
+
+// Review attempts never replace the original first-choice/reveal evidence or award XP.
+export const mistakeReviewAnswers = databaseSchema.table("mistake_review_answers", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  setId: varchar("set_id", { length: 36 }).notNull().references(() => dailyPracticeSets.id, { onDelete: "cascade" }),
+  questionIndex: integer("question_index").notNull(),
+  attemptNumber: integer("attempt_number").notNull(),
+  answer: jsonb("answer").$type<DailyAnswer>().notNull(),
+  outcome: varchar("outcome", { length: 12 }).$type<DailyResult["outcome"]>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 3 }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex("mistake_review_answers_question_attempt_uidx").on(table.setId, table.questionIndex, table.attemptNumber),
+  check("mistake_review_answers_values_check", sql`${table.questionIndex} between 0 and 4 and ${table.attemptNumber} > 0 and ${table.outcome} in ('correct', 'wrong', 'revealed')`),
+]);
+// Server-only current counters (not prompts, tokens or an unbounded event log).
+export const aiUsageState = databaseSchema.table("ai_usage_state", {
+  id: varchar("id", { length: 160 }).primaryKey(),
+  minute: integer("minute").notNull().default(0),
+  day: integer("day").notNull().default(0),
+  minuteCalls: integer("minute_calls").notNull().default(0),
+  dayCalls: integer("day_calls").notNull().default(0),
+  blockedUntil: timestamp("blocked_until", { withTimezone: true }),
+  blockCode: varchar("block_code", { length: 40 }),
+}, table => [check("ai_usage_state_counts_check", sql`${table.minuteCalls} >= 0 and ${table.dayCalls} >= 0`)]);
 export const translationCache = databaseSchema.table("translation_cache", {
   key: varchar("key", { length: 64 }).primaryKey(),
   payload: jsonb("payload").notNull(),

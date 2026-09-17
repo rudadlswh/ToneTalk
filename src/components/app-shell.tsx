@@ -13,11 +13,11 @@ import {
 } from "lucide-react";
 
 const navigation = [
-  { href: "/", label: "Translate", icon: Languages, enabled: true },
-  { href: "/saved", label: "Saved", icon: BookMarked, enabled: true },
-  { href: "/study", label: "Study", icon: Brain, enabled: true },
-  { href: "/lyrics", label: "Lyrics", icon: Music2, enabled: true },
-  { href: "/profile", label: "Profile", icon: UserRound, enabled: true },
+  { href: "/", label: "번역", icon: Languages, enabled: true },
+  { href: "/saved", label: "저장 문장", icon: BookMarked, enabled: true },
+  { href: "/study", label: "학습", icon: Brain, enabled: true },
+  { href: "/lyrics", label: "가사", icon: Music2, enabled: true },
+  { href: "/profile", label: "프로필", icon: UserRound, enabled: true },
 ];
 
 export function AppShell({ children, provider = "ollama" }: { children: React.ReactNode; provider?: "ollama" | "gemini" }) {

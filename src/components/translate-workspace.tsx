@@ -30,11 +30,11 @@ import type { Tone } from "@/lib/translation-contract";
 import { updateSessionBookmark } from "@/lib/translation-session-state";
 
 const toneMeta: Record<Tone, { label: string; emoji: string; className: string }> = {
-  casual: { label: "Casual", emoji: "😊", className: "tone-casual" },
-  polite: { label: "Polite", emoji: "🙏", className: "tone-polite" },
-  formal: { label: "Formal", emoji: "👔", className: "tone-formal" },
-  slang: { label: "Slang", emoji: "🤙", className: "tone-slang" },
-  written: { label: "Written", emoji: "✍️", className: "tone-written" },
+  casual: { label: "일상 표현", emoji: "😊", className: "tone-casual" },
+  polite: { label: "공손한 표현", emoji: "🙏", className: "tone-polite" },
+  formal: { label: "공식적인 표현", emoji: "👔", className: "tone-formal" },
+  slang: { label: "슬랭", emoji: "🤙", className: "tone-slang" },
+  written: { label: "글쓰기 표현", emoji: "✍️", className: "tone-written" },
 };
 
 type TranslationResponse = { session: TranslationSessionDto; requestId: string };
@@ -284,7 +284,7 @@ export function TranslateWorkspace() {
             <div className="empty-results">
               <div className="empty-orbit"><Sparkles size={28} /></div>
               <h2>표현의 온도를 바꿔보세요</h2>
-              <p>문장을 입력하면 Casual부터 Written까지<br />상황별 표현을 한 번에 보여드려요.</p>
+              <p>문장을 입력하면 일상 표현부터 글쓰기 표현까지<br />상황별 표현을 한 번에 보여드려요.</p>
             </div>
           )}
 

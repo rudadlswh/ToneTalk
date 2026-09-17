@@ -24,7 +24,7 @@ for (const model of models) {
           method: "POST", headers, signal: AbortSignal.timeout(150_000),
           body: JSON.stringify({ model, stream: false, format, keep_alive: "2m", options: { temperature: 0, num_predict: 1600, num_ctx: 4096 }, messages: [
             { role: "system", content: "You are a meticulous multilingual language coach. Follow the JSON schema exactly." },
-            { role: "user", content: buildPrompt("Could you help me?", "en", "ja", false) },
+            { role: "user", content: buildPrompt("Could you help me?", "en", "ja") },
           ] }),
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);

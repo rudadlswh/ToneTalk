@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { pool } from "@/server/db";
 import { getEnv } from "@/server/env";
 import { assertRequestActive, requestSignal } from "@/server/request-budget";
+import { AiServiceError } from "@/server/ai-error";
 
 export class InferenceBusyError extends Error {}
 
@@ -29,7 +30,7 @@ export async function withInferenceSlot<T>(work: () => Promise<T>): Promise<T> {
   } catch (error) {
     // Output validation happens after a complete response; it is safe to admit
     // the next request. Network failures/timeouts are ambiguous, so retain lease.
-    finished = error instanceof Error && ["OllamaOutputError", "SameLanguageError"].includes(error.name);
+    finished = (error instanceof AiServiceError && !error.retainLease) || (error instanceof Error && ["OllamaOutputError", "SameLanguageError"].includes(error.name));
     throw error;
   } finally {
     // On cancellation keep the lease until expiry: upstream cancellation is best

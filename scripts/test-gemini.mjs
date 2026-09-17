@@ -12,7 +12,7 @@ const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/m
   signal: AbortSignal.timeout(30000),
   body: JSON.stringify({
     systemInstruction: { parts: [{ text: "You are a meticulous multilingual language coach. Follow the JSON schema exactly." }] },
-    contents: [{ role: "user", parts: [{ text: buildPrompt("Could you help me?", "en", "ja", false) }] }],
+    contents: [{ role: "user", parts: [{ text: buildPrompt("Could you help me?", "en", "ja") }] }],
     generationConfig: { temperature: 0, maxOutputTokens: 1600, responseMimeType: "application/json", responseJsonSchema: translationFormat, thinkingConfig: { thinkingLevel: "minimal" } },
   }),
 });

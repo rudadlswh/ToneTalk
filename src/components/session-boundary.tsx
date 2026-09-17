@@ -1,5 +1,12 @@
 "use client";
-import { useEffect } from "react";
+import { createContext, useContext, useEffect } from "react";
+
+const SessionUserId = createContext<string | null>(null);
+export function useSessionUserId() {
+  const userId = useContext(SessionUserId);
+  if (!userId) throw new Error("A verified session is required");
+  return userId;
+}
 
 // Clear mounted results/router state when another tab changes accounts, or when
 // returning to a previously cached page after logout. No data is persisted here.
@@ -30,5 +37,5 @@ export function SessionBoundary({ userId, children }: { userId: string; children
       document.removeEventListener("visibilitychange", check);
     };
   }, [userId]);
-  return children;
+  return <SessionUserId.Provider value={userId} key={userId}>{children}</SessionUserId.Provider>;
 }

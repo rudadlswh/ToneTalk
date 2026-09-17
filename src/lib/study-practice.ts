@@ -3,11 +3,11 @@ import { languageCodes } from "@/lib/languages";
 import { tones, type Tone } from "@/lib/translation-contract";
 
 export const practiceTones: Record<Tone, { label: string; explanation: string }> = {
-  casual: { label: "친구체", explanation: "친한 사람과 편안하게 말할 때 쓰는 표현이에요." },
-  polite: { label: "공손체", explanation: "상대에게 예의를 갖추는 일상적인 표현이에요." },
-  formal: { label: "격식체", explanation: "공식적인 자리나 업무 상황에 어울리는 표현이에요." },
+  casual: { label: "일상 표현", explanation: "친한 사람과 편안하게 말할 때 쓰는 표현이에요." },
+  polite: { label: "공손한 표현", explanation: "상대에게 예의를 갖추는 일상적인 표현이에요." },
+  formal: { label: "공식적인 표현", explanation: "공식적인 자리나 업무 상황에 어울리는 표현이에요." },
   slang: { label: "슬랭", explanation: "아주 친한 사이에서 쓰는 구어적 표현이에요. 낯선 상대에게는 주의하세요." },
-  written: { label: "문어체", explanation: "대화보다 이메일이나 글에 어울리는 표현이에요." },
+  written: { label: "글쓰기 표현", explanation: "대화보다 이메일이나 글에 어울리는 표현이에요." },
 };
 
 export type PracticePhrase = {
@@ -19,15 +19,6 @@ export type PracticePhrase = {
   contextNote: string;
 };
 
-// Reviewed starter examples keep the activities usable before the first save.
-export const starterPhrases: PracticePhrase[] = [
-  { id: "demo-casual", sourceText: "친구에게: 나중에 보자!", translatedText: "See you later!", targetLanguage: "en", tone: "casual", contextNote: "짧고 편안한 작별 인사로 친구 사이에 자연스러워요." },
-  { id: "demo-polite", sourceText: "낯선 사람에게: 잠시 도와주실 수 있나요?", translatedText: "Could you help me for a moment, please?", targetLanguage: "en", tone: "polite", contextNote: "Could you와 please로 부탁을 부드럽고 공손하게 만들어요." },
-  { id: "demo-formal", sourceText: "공식 회의에서: 참석해 주셔서 감사합니다.", translatedText: "We sincerely appreciate your attendance today.", targetLanguage: "en", tone: "formal", contextNote: "sincerely appreciate와 attendance가 공식적인 분위기를 만들어요." },
-  { id: "demo-slang", sourceText: "친한 친구에게: 뭐 해?", translatedText: "Yo, what's up?", targetLanguage: "en", tone: "slang", contextNote: "Yo는 매우 비격식적인 인사예요. 업무나 공식적인 자리에는 피하세요." },
-  { id: "demo-written", sourceText: "이메일에서: 요청하신 서류를 첨부합니다.", translatedText: "Please find the requested documents attached.", targetLanguage: "en", tone: "written", contextNote: "첨부 문서를 안내하는 전형적인 이메일 문구예요. 공손체와 겹칠 수도 있어요." },
-];
-
 export function shuffle<T>(values: readonly T[], random = Math.random): T[] {
   const result = [...values];
   for (let i = result.length - 1; i > 0; i--) {
@@ -35,6 +26,19 @@ export function shuffle<T>(values: readonly T[], random = Math.random): T[] {
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+}
+
+export function practiceDay(now = new Date()): number {
+  // Calendar day in Korea, independent of the browser's timezone.
+  return Math.floor((now.getTime() + 9 * 60 * 60 * 1000) / 86_400_000);
+}
+
+export function dailyPracticeDeck(values: readonly PracticePhrase[], day: number, kind: "quiz" | "puzzle") {
+  if (!values.length) return [];
+  const count = Math.min(5, values.length);
+  const step = values.length > 5 ? 5 : 1;
+  const offset = ((day * step + (kind === "puzzle" ? 5 : 0)) % values.length + values.length) % values.length;
+  return Array.from({ length: count }, (_, i) => values[(offset + i) % values.length]);
 }
 
 export function quizOptions(answer: Tone): Tone[] {

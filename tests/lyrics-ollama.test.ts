@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/server/ai-usage", () => ({ withAiUsage: (_signal: AbortSignal, work: () => Promise<unknown>) => work() }));
 vi.mock("@/server/env", () => ({ getEnv: () => ({
   OLLAMA_BASE_URL: "https://ollama.example",
   OLLAMA_MODEL: "test-model",
@@ -9,21 +10,24 @@ vi.mock("@/server/env", () => ({ getEnv: () => ({
   OLLAMA_BASIC_AUTH_PASSWORD: "test-password",
 }) }));
 
-import { generateTranslation, generateRoleplayReply, generateLyrics, generateLyricExplanation, OllamaOutputError, OllamaUnavailableError } from "@/server/ollama";
+import { generateTranslation, generateRoleplayReply, generateLyrics, generateLyricExplanation, OllamaOutputError, SameLanguageError } from "@/server/ollama";
+import { AiServiceError } from "@/server/ai-error";
 import type { LyricsRequest } from "@/lib/lyrics-contract";
+import { tones } from "@/lib/translation-contract";
+import { buildPrompt } from "@/lib/translation-prompt";
 
 const input: LyricsRequest = { sourceLanguage: "en", targetLanguage: "ko", lines: [{ id: 3, text: "Morning light" }] };
 const result = { lines: [{ id: 3, sourceLanguage: "en", translation: "아침 햇살", romanization: "Morning light", hangulPronunciation: "모닝 라이트" }] };
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("Ollama lyrics integration", () => {
-  it("preserves all four POST envelopes and their upstream error messages", async () => {
+  it("preserves all four POST envelopes and classifies upstream outage consistently", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 503 }));
     vi.stubGlobal("fetch", fetcher);
-    await expect(generateTranslation("Hello", "en", "ja")).rejects.toThrow("Ollama returned 503");
-    await expect(generateLyrics(input, new AbortController().signal)).rejects.toThrow("Lyrics request failed or timed out");
-    await expect(generateLyricExplanation({ action: "explain", text: "Hello", sourceLanguage: "en" }, new AbortController().signal)).rejects.toThrow("Lyric explanation failed or timed out");
-    await expect(generateRoleplayReply({ scenario: "cafe", language: "en", messages: [{ role: "user", content: "Hello" }] }, new AbortController().signal)).rejects.toThrow("Roleplay request failed or timed out");
+    await expect(generateTranslation("Hello", "en", "ja")).rejects.toMatchObject({ code: "OLLAMA_UNAVAILABLE", status: 503 });
+    await expect(generateLyrics(input, new AbortController().signal)).rejects.toBeInstanceOf(AiServiceError);
+    await expect(generateLyricExplanation({ action: "explain", text: "Hello", sourceLanguage: "en" }, new AbortController().signal)).rejects.toBeInstanceOf(AiServiceError);
+    await expect(generateRoleplayReply({ scenario: "cafe", language: "en", messages: [{ role: "user", content: "Hello" }] }, new AbortController().signal)).rejects.toBeInstanceOf(AiServiceError);
     expect(fetcher).toHaveBeenCalledTimes(4);
     const expectedOptions = [
       { temperature: 0, num_predict: 1600, num_ctx: 4096 },
@@ -85,7 +89,39 @@ describe("Ollama lyrics integration", () => {
       throw new DOMException("Aborted", "AbortError");
     });
     vi.stubGlobal("fetch", fetcher);
-    await expect(generateLyrics(input, controller.signal)).rejects.toBeInstanceOf(OllamaUnavailableError);
+    await expect(generateLyrics(input, controller.signal)).rejects.toBeInstanceOf(AiServiceError);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("single-attempt translation generation", () => {
+  const output = {
+    sourceLanguage: "en",
+    ...Object.fromEntries(tones.map(tone => [tone, {
+      translatedText: "こんにちは", romanization: "Konnichiwa", hangulPronunciation: "콘니치와",
+    }])),
+  };
+  it("returns all five validated tones using the shared prompt", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ message: { content: JSON.stringify(output) } }));
+    vi.stubGlobal("fetch", fetcher);
+    const translation = await generateTranslation("Hello", "en", "ja");
+    expect(translation.sourceLanguage).toBe("en");
+    expect(translation.variants.map(variant => variant.tone)).toEqual(tones);
+    expect(translation.variants[0]).toMatchObject({ translatedText: "こんにちは", transliteration: "Konnichiwa", hangulPronunciation: "콘니치와" });
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).messages[1].content).toBe(buildPrompt("Hello", "en", "ja"));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it.each(["", "not JSON", "{}", JSON.stringify({ ...output, sourceLanguage: "ko" })])("rejects invalid output without retrying: %s", async content => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ message: { content } }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(generateTranslation("Hello", "en", "ja")).rejects.toBeInstanceOf(OllamaOutputError);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it("preserves the detected same-language error without retrying", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ message: { content: JSON.stringify({ ...output, sourceLanguage: "ja" }) } }));
+    vi.stubGlobal("fetch", fetcher);
+    await expect(generateTranslation("こんにちは", "auto", "ja")).rejects.toBeInstanceOf(SameLanguageError);
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

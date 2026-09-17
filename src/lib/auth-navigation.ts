@@ -1,4 +1,4 @@
-const destinations = new Set(["/", "/saved", "/study", "/lyrics", "/profile"]);
+const destinations = new Set(["/", "/saved", "/study", "/study/mistakes", "/lyrics", "/profile"]);
 
 export function safeAuthNext(value: string | null | undefined) {
   return value && destinations.has(value) ? value : "/";

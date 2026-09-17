@@ -4,6 +4,14 @@ import { z } from "zod";
 
 const envSchema = z.object({
   AI_PROVIDER: z.enum(["ollama", "gemini"]).default("ollama"),
+  AI_ENABLED: z.enum(["true", "false"]).default("true").transform(value => value === "true"),
+  AI_USER_DAILY_LIMIT: z.coerce.number().int().min(1).max(10000).default(30),
+  AI_GLOBAL_DAILY_LIMIT: z.coerce.number().int().min(1).max(100000).default(100),
+  AI_USER_MINUTE_LIMIT: z.coerce.number().int().min(1).max(100).default(5),
+  AI_GLOBAL_MINUTE_LIMIT: z.coerce.number().int().min(1).max(1000).default(10),
+  AI_MAX_CONCURRENT: z.coerce.number().int().min(1).max(10).default(2),
+  AI_USAGE_SCHEMA: z.enum(["tonetalk_dev", "tonetalk_prod"]).optional(),
+  AI_USAGE_SCOPE: z.string().regex(/^[a-zA-Z0-9_-]{1,32}$/).default("primary"),
   GEMINI_API_KEY: z.string().min(1).optional(),
   GEMINI_MODEL: z.literal("gemini-3.1-flash-lite").default("gemini-3.1-flash-lite"),
   DATABASE_URL: z.string().url(),

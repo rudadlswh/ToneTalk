@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isPuzzleCorrect, matchesPracticeLanguage, puzzleWords, quizOptions, roleplayReplySchema, roleplayRequestSchema, shuffle, starterPhrases } from "@/lib/study-practice";
+import { tones } from "@/lib/translation-contract";
+import { isPuzzleCorrect, matchesPracticeLanguage, puzzleWords, quizOptions, roleplayReplySchema, roleplayRequestSchema, shuffle } from "@/lib/study-practice";
 
 describe("study practice", () => {
   it("shuffles without mutating or losing duplicate tokens", () => {
@@ -8,10 +9,10 @@ describe("study practice", () => {
     expect(original).toEqual(["a", "a", "b"]);
   });
   it("offers four distinct tones including the answer", () => {
-    for (const phrase of starterPhrases) {
-      const options = quizOptions(phrase.tone);
+    for (const tone of tones) {
+      const options = quizOptions(tone);
       expect(new Set(options).size).toBe(4);
-      expect(options).toContain(phrase.tone);
+      expect(options).toContain(tone);
     }
   });
   it("keeps punctuation and repeated words in puzzles", () => {

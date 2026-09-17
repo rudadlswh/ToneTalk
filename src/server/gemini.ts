@@ -1,9 +1,9 @@
 import "server-only";
 import { getEnv } from "@/server/env";
+import { AiServiceError, retryAfterSeconds } from "@/server/ai-error";
 
-export class GeminiError extends Error {
+export class GeminiError extends AiServiceError {
   override name = "GeminiError";
-  constructor(public status: number, public code: string, message: string) { super(message); }
 }
 
 type ChatRequest = {
@@ -19,11 +19,13 @@ function endpoint() {
 // Preserve the existing validated chat envelope. No retries or model fallback.
 export async function postGemini(body: unknown, signal: AbortSignal): Promise<Response> {
   const input = body as ChatRequest;
+  const deadline = AbortSignal.any([signal, AbortSignal.timeout(45_000)]);
   try {
+    deadline.throwIfAborted();
     const response = await fetch(`${endpoint()}:generateContent`, {
       method: "POST", cache: "no-store",
       headers: { "Content-Type": "application/json", "x-goog-api-key": getEnv().GEMINI_API_KEY! },
-      signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]),
+      signal: deadline,
       body: JSON.stringify({
         systemInstruction: { parts: input.messages.filter(m => m.role === "system").map(m => ({ text: m.content })) },
         contents: input.messages.filter(m => m.role !== "system").map(m => ({
@@ -38,8 +40,12 @@ export async function postGemini(body: unknown, signal: AbortSignal): Promise<Re
       }),
     });
     if (!response.ok) {
-      if (response.status === 429) throw new GeminiError(429, "AI_QUOTA_EXCEEDED", "Gemini 무료 사용 한도에 도달했어요. 잠시 후 다시 시도해 주세요.");
-      throw new GeminiError(503, "GEMINI_UNAVAILABLE", "Gemini 연결 설정 또는 서비스 상태를 확인해 주세요.");
+      if (response.status === 429) {
+        const wait = retryAfterSeconds(response.headers.get("retry-after"));
+        throw new GeminiError(429, "AI_QUOTA_EXCEEDED", "Gemini 사용 한도에 도달했어요. 대기 후에도 계속되면 관리자에게 무료 등급 한도 확인을 요청해 주세요.", wait, wait);
+      }
+      if ([400, 401, 403, 404].includes(response.status)) throw new GeminiError(503, "AI_CONFIGURATION_ERROR", "AI 연결 설정을 확인해야 해요. 관리자에게 문의해 주세요.", 300, 300);
+      throw new GeminiError(503, "GEMINI_UNAVAILABLE", "Gemini 서비스가 응답하지 않아요. 잠시 후 다시 시도해 주세요.", 30, 30);
     }
     const data = await response.json();
     const candidate = data.candidates?.[0];
@@ -49,7 +55,9 @@ export async function postGemini(body: unknown, signal: AbortSignal): Promise<Re
     return Response.json({ message: { content } });
   } catch (error) {
     if (error instanceof GeminiError) throw error;
-    throw new GeminiError(503, "GEMINI_UNAVAILABLE", "Gemini 응답을 받지 못했어요. 연결 또는 응답 시간을 확인해 주세요.");
+    if (signal.aborted) throw new GeminiError(499, "AI_CANCELLED", "AI 요청을 취소했어요.", 0, 0, true);
+    if (deadline.aborted) throw new GeminiError(504, "AI_TIMEOUT", "AI 응답 시간이 초과됐어요. 입력을 유지했으니 잠시 후 다시 시도해 주세요.", 15, 15, true);
+    throw new GeminiError(503, "GEMINI_UNAVAILABLE", "Gemini 응답을 받지 못했어요. 입력은 유지됩니다.", 30, 30, true);
   }
 }
 

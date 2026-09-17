@@ -1,7 +1,10 @@
 "use client";
+import Link from "next/link";
 import { useAiProvider } from "@/components/ai-provider";
 import { useToast } from "@/hooks/use-toast";
 import { SignOutButton } from "@/components/sign-out-button";
+import { StudyPointsHistory } from "@/components/study-points-history";
+import { AiUsagePanel } from "@/components/ai-usage-panel";
 
 import { useEffect, useState } from "react";
 import {
@@ -201,6 +204,7 @@ export function ProfileWorkspace() {
         </section>
 
         <aside className="profile-side">
+          <AiUsagePanel />
           <section className="system-panel">
             <div className="panel-heading"><div><span className="section-label">SERVICE STATUS</span><h2>서비스 상태</h2></div></div>
             <div className="service-row"><span className="service-icon"><Database size={18} /></span><div><strong>PostgreSQL</strong><small>학습 데이터 저장소</small></div><span className={`service-status ${healthLoading ? "" : health?.database ? "is-online" : "is-offline"}`}>{healthLoading ? "확인 중" : health?.database ? "정상" : "확인 필요"}</span></div>
@@ -213,6 +217,8 @@ export function ProfileWorkspace() {
           </section>
         </aside>
       </div>
+      <StudyPointsHistory />
+      <Link className="practice-review-link" href="/study/mistakes"><Brain size={21} /><span><strong>오답 복습으로 이어가기</strong><small>틀린 퀴즈·퍼즐을 유형과 어투별로 모아 다시 풀어보세요.</small></span></Link>
       {toast && <div className="toast" role="status"><Check size={17} />{toast}</div>}
     </div>
   );

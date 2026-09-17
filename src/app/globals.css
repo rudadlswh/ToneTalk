@@ -400,6 +400,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .practice-header { gap: 20px; }
 .practice-xp { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: #a54c00; background: #fffbeb; padding: 12px 16px; border: 1px solid #ffe398; border-radius: 16px; }
 .practice-xp small { flex-basis: 100%; font-size: 10px; color: #8b704e; }
+.points-history { margin-top: 18px; }
+.points-total { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; border-radius: 14px; background: #fffbeb; color: #8d4700; }
+.points-total strong { margin-left: auto; font-size: 25px; }
+.points-list { margin: 16px 0; padding: 0; list-style: none; }
+.points-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.points-list li > div { display: grid; gap: 6px; font-size: 13px; }
+.points-list time { color: var(--muted); font-size: 11px; }
+.points-list li > span { flex-shrink: 0; color: #8d4700; font-size: 14px; font-weight: 800; }
+.points-empty { padding: 18px 0; color: var(--muted); font-size: 13px; }
 .practice-menu { display: grid; gap: 17px; }
 .practice-tile { --practice-accent: #e90049; --practice-soft: #fff1f4; width: 100%; display: grid; grid-template-columns: 64px minmax(0,1fr) 34px; gap: 22px; padding: 28px; text-align: left; background: white; border: 1px solid #e1e7f0; border-radius: 25px; box-shadow: 0 3px 0 #e9edf3; cursor: pointer; transition: border-color .15s, transform .15s; }
 .practice-tile:hover, .practice-tile:focus-visible { border-color: var(--practice-accent); transform: translateY(-2px); }
@@ -419,6 +428,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .practice-review-link { width: 100%; display: flex; align-items: center; gap: 15px; margin-top: 24px; padding: 20px; border: 1px solid #e1e7f0; border-radius: 16px; background: #fff; color: #536079; text-align: left; cursor: pointer; }
 .practice-review-link > span { flex: 1; display: grid; gap: 5px; }
 .practice-review-link small { color: #7a8496; line-height: 1.6; }
+.mistake-filters { margin: 22px 0; }
+.mistake-list { display: grid; gap: 16px; margin-bottom: 20px; }
+.mistake-list h2 { font-size: 20px; overflow-wrap: anywhere; }
 .practice-footnote { color: #7d8799; font-size: 11px; line-height: 1.8; margin-top: 16px; }
 .practice-section-heading { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 22px; }
 .practice-section-heading h2 { font-size: 20px; margin: 0; }

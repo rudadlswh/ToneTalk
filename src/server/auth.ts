@@ -15,9 +15,9 @@ export class AuthenticationUnavailableError extends Error {
   constructor() { super("인증 서버에 연결하지 못했습니다."); this.name = "AuthenticationUnavailableError"; }
 }
 
-export async function verifyUser(): Promise<AuthenticatedUser> {
-  const client = await createAuthClient();
-  const { data, error } = await client.auth.getUser();
+export async function verifyUser(accessToken?: string): Promise<AuthenticatedUser> {
+  const client = await createAuthClient(accessToken);
+  const { data, error } = await client.auth.getUser(accessToken);
   if (error && (error.status === undefined || error.status >= 500 || error.status === 429)) throw new AuthenticationUnavailableError();
   const user = data.user;
   if (error || !user || user.is_anonymous || !user.email || !user.email_confirmed_at) throw new AuthenticationError();
@@ -43,7 +43,13 @@ export function withAuth<Args extends unknown[]>(handler: (request: Request, ...
     }
     let user: AuthenticatedUser;
     const started = performance.now();
-    try { user = await verifyUser(); }
+    try {
+      const authorization = request.headers.get("authorization");
+      const bearer = authorization?.match(/^Bearer ([^\s]+)$/i);
+      // A supplied invalid token must never fall back to another cookie identity.
+      if (authorization !== null && !bearer) throw new AuthenticationError();
+      user = await verifyUser(bearer?.[1]);
+    }
     catch (error) {
       if (error instanceof AuthenticationError) return jsonError(requestId, 401, "AUTH_REQUIRED", "로그인 후 다시 시도해 주세요.");
       return jsonError(requestId, 503, "AUTH_UNAVAILABLE", error instanceof AuthConfigurationError ? "로그인 설정이 준비되지 않았습니다." : "인증 서버에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.", true);

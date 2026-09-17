@@ -72,15 +72,7 @@ export function LyricsWorkspace() {
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(180_000)]),
       });
       // Detail failures never discard the original translation or pronunciation.
-      if (!response.ok) {
-        const messages: Record<number, string> = {
-          429: "요청이 많아요. 1분 후 해설을 다시 불러와 주세요.",
-          502: "AI 해설의 원문·후리가나·단어 형식을 확인하지 못했어요. 다시 시도해 주세요.",
-          503: "AI 연결 또는 응답 시간이 초과됐어요. 잠시 후 다시 시도해 주세요.",
-        };
-        throw new Error(messages[response.status] ?? "상세 해설을 불러오지 못했어요. 다시 시도해 주세요.");
-      }
-      const body = await response.json() as { explanation: unknown };
+      const body = await readJson<{ explanation: unknown }>(response);
       const explanation = parseLyricExplanation(body.explanation, input);
       if (active.current === controller) setExplanations((previous) => ({ ...previous, [id]: explanation }));
     } catch (error) {

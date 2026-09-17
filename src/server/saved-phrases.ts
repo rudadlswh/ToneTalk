@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import {
   savedPhrases,
   translationSessions,
@@ -125,13 +125,4 @@ export async function deleteSavedPhrase(id: string) {
     .where(and(eq(savedPhrases.id, id), eq(savedPhrases.ownerId, ownerId)))
     .returning({ id: savedPhrases.id });
   return result.length > 0;
-}
-
-export async function countSavedPhrases() {
-  const ownerId = await getCurrentOwnerId();
-  const [result] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(savedPhrases)
-    .where(eq(savedPhrases.ownerId, ownerId));
-  return result?.count ?? 0;
 }

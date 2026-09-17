@@ -28,11 +28,11 @@ import { getLanguage } from "@/lib/languages";
 import type { Tone } from "@/lib/translation-contract";
 
 const toneLabels: Record<Tone, string> = {
-  casual: "😊 Casual",
-  polite: "🙏 Polite",
-  formal: "👔 Formal",
-  slang: "🤙 Slang",
-  written: "✍️ Written",
+  casual: "😊 일상 표현",
+  polite: "🙏 공손한 표현",
+  formal: "👔 공식적인 표현",
+  slang: "🤙 슬랭",
+  written: "✍️ 글쓰기 표현",
 };
 
 const ratings: Array<{

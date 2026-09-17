@@ -62,6 +62,7 @@ describe("verified request identity", () => {
   it("allows only known local pages as login destinations", () => {
     for (const next of ["https://evil.test", "//evil.test", "/\\evil.test", "/auth/callback", "/api/profile", "/saved?next=//evil.test"]) expect(safeAuthNext(next)).toBe("/");
     expect(safeAuthNext("/saved")).toBe("/saved");
+    expect(safeAuthNext("/study/mistakes")).toBe("/study/mistakes");
   });
   it("every existing app API rejects unauthenticated direct access before data/AI work", async () => {
     mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
@@ -75,7 +76,8 @@ describe("verified request identity", () => {
       [await import("@/app/api/health/route"), ["GET"]],
       [await import("@/app/api/translations/route"), ["POST"]],
       [await import("@/app/api/lyrics/route"), ["POST"]],
-      [await import("@/app/api/study/chat/route"), ["POST"]],
+      [await import("@/app/api/study/chat/route"), ["POST", "PUT"]],
+      [await import("@/app/api/study/mistakes/route"), ["GET", "POST"]],
       [await import("@/app/api/tts/route"), ["POST"]],
     ] as const;
     for (const [module, methods] of routes) {

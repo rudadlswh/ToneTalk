@@ -1,5 +1,9 @@
 # ToneTalk
 
+현재 6단계 [오답 복습](docs/MISTAKE-REVIEW.md): 학습·프로필에서 유형/어투별로 오답을 다시 풀고 결과를 저장합니다. 추가 AI 호출·XP 지급 없이 원래 풀이와 적립 기록을 유지합니다. 개발 DB만 적용했으며 운영에는 3·4·5·6단계 미적용 SQL을 먼저 적용해야 합니다. 5단계 XP 지급 검증은 [STUDY-REWARD-PROOF.md](docs/STUDY-REWARD-PROOF.md)를 참고하세요.
+
+현재 AI 사용량 제한·장애 대응 및 운영 적용 절차: [AI-USAGE.md](docs/AI-USAGE.md). 계정당 하루 30회·범위 전체 100회가 기본이며 프로필에서 내 앱 사용량을 확인할 수 있습니다. Gemini/아이디·비밀번호 인증 설정은 [GEMINI.md](docs/GEMINI.md), [PASSWORD-AUTH.md](docs/PASSWORD-AUTH.md)가 최신 기준입니다.
+
 한 문장을 상황에 맞는 다섯 가지 말투로 번역하고, 유용한 표현을 저장·검색하는 로컬 AI 언어 학습 웹 앱입니다.
 
 이메일 로그인 링크(Supabase Auth)로 사용자를 구분하며 저장 문장·프로필·복습 기록·번역 캐시는 검증된 사용자 ID별로 분리됩니다. 외부 AI API를 사용하지 않고 사설망의 Ollama만 서버에서 호출합니다. 배포 전 [인증 설정 및 검증 절차](docs/AUTH.md)를 적용하세요.
@@ -177,8 +181,12 @@ Supabase Auth의 UUID를 `app_users.id`와 `owner_id`로 사용합니다. `SINGL
 | `DELETE` | `/api/saved-phrases/:id` | 소유자 범위에서 저장 삭제 |
 | `GET` | `/api/study?limit=` | 오늘 복습할 카드와 학습 요약 |
 | `POST` | `/api/study/reviews` | 자기 평가 기록과 다음 복습일 계산 |
+| `POST` | `/api/study/points` | 이전 원장 요청 확인 전용 (신규 XP 지급 거절) |
+| `GET` | `/api/study/points?cursor=` | 내 누적 XP와 최근 적립 기록 20건 |
 | `GET` | `/api/profile` | 사용자 설정과 학습 통계 |
 | `PATCH` | `/api/profile` | 표시 이름·기본 언어·하루 목표 변경 |
+
+스터디 포인트는 계정별 DB 원장에 저장하며, 프로필에서 누적 XP와 적립 기록을 확인합니다. 퀴즈 20·퍼즐 25·채팅 35 XP를 유형별 하루 한 번(한국 시간, 최대 80 XP)만 적립하고 이후에도 학습은 계속할 수 있습니다. 기존 환경에는 추가 마이그레이션이 필요합니다. 개발 DB에만 적용했으며 운영에는 `20260916033055_study_daily_reward_limit.sql`도 적용해야 합니다. 지급 규칙·테스트·보안 범위는 [STUDY-POINTS.md](docs/STUDY-POINTS.md)를 참고하세요.
 
 ### 번역 요청
 
