@@ -229,6 +229,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .saved-card-actions .danger-icon { width: 34px; padding: 0; justify-content: center; color: #a35656; }
 
 .study-page { max-width: 1040px; }
+.study-embedded { width: 100%; margin-top: 0; }
 .study-header { align-items: center; }
 .study-streak { min-width: 132px; padding: 12px 15px; display: flex; align-items: center; justify-content: center; gap: 7px; color: #d95329; background: #fff7ef; border: 1px solid #ffe3cd; border-radius: 16px; }
 .study-streak strong { color: var(--ink); font-size: 20px; }

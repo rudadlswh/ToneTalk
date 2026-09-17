@@ -58,7 +58,7 @@ type ReviewResponse = {
   requestId: string;
 };
 
-export function StudyWorkspace() {
+export function StudyWorkspace({ embedded = false }: { embedded?: boolean } = {}) {
   const [items, setItems] = useState<StudyItemDto[]>([]);
   const [summary, setSummary] = useState<StudySummaryDto | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -142,8 +142,8 @@ export function StudyWorkspace() {
   };
 
   return (
-    <div className="page-wrap study-page">
-      <header className="page-header study-header">
+    <div className={`${embedded ? "study-page study-embedded" : "page-wrap study-page"}`}>
+      {!embedded && <header className="page-header study-header">
         <div>
           <span className="eyebrow">SMART PHRASE REVIEW</span>
           <h1>Study</h1>
@@ -152,7 +152,7 @@ export function StudyWorkspace() {
         {summary && (
           <div className="study-streak"><Flame size={18} /><strong>{summary.streakDays}</strong><span>day streak</span></div>
         )}
-      </header>
+      </header>}
 
       {summary && (
         <section className="study-overview" aria-label="오늘의 학습 현황">

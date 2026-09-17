@@ -26,8 +26,7 @@ export function StudyPracticeWorkspace() {
   const userId = useSessionUserId();
   const { totalPoints, loadError, saveError, storageError, notice, pending, failed, unverified, retry, refresh } = useStudyPoints(userId);
   return (
-    <>
-      <div className="page-wrap practice-page">
+    <div className="page-wrap practice-page">
         <header className="page-header practice-header">
           <div><span className="eyebrow">A LITTLE PRACTICE, EVERY DAY</span><h1>Study</h1><p>뜻을 아는 것에서, 자연스럽게 말하는 것으로.</p></div>
           <div className="practice-xp" aria-live="polite"><Sparkles size={17} /><strong>{totalPoints === null ? "—" : totalPoints.toLocaleString("ko-KR")} XP</strong><small>내 계정 누적 포인트 · 프로필에서 기록 확인</small></div>
@@ -80,9 +79,8 @@ export function StudyPracticeWorkspace() {
         )}
         {(mode === "quiz" || mode === "puzzle") && <PhrasePractice key={mode} kind={mode} onDailySaved={refresh} />}
         {mode === "chat" && <ChatPractice onSaved={refresh} />}
-      </div>
-      {mode === "review" && <StudyWorkspace />}
-    </>
+        {mode === "review" && <StudyWorkspace embedded />}
+    </div>
   );
 }
 
