@@ -13,6 +13,7 @@ const envSchema = z.object({
   AI_USAGE_SCHEMA: z.enum(["tonetalk_dev", "tonetalk_prod"]).optional(),
   AI_USAGE_SCOPE: z.string().regex(/^[a-zA-Z0-9_-]{1,32}$/).default("primary"),
   GEMINI_API_KEY: z.string().min(1).optional(),
+  GEMINI_API_KEYS: z.string().min(1).max(2000).optional(),
   GEMINI_MODEL: z.literal("gemini-3.1-flash-lite").default("gemini-3.1-flash-lite"),
   DATABASE_URL: z.string().url(),
   DATABASE_SCHEMA: z.enum(["tonetalk_dev", "tonetalk_prod"]).default("tonetalk_dev"),
@@ -23,8 +24,12 @@ const envSchema = z.object({
   OLLAMA_BASIC_AUTH_USERNAME: z.string().min(1).optional(),
   OLLAMA_BASIC_AUTH_PASSWORD: z.string().min(1).optional(),
 }).superRefine((env, context) => {
-  if (env.AI_PROVIDER === "gemini" && !env.GEMINI_API_KEY) {
-    context.addIssue({ code: "custom", path: ["GEMINI_API_KEY"], message: "Gemini API key is required" });
+  const geminiKeys = env.GEMINI_API_KEYS?.split(",").map(value => value.trim()).filter(Boolean) ?? [];
+  if (env.AI_PROVIDER === "gemini" && !env.GEMINI_API_KEY && geminiKeys.length === 0) {
+    context.addIssue({ code: "custom", path: ["GEMINI_API_KEYS"], message: "At least one Gemini API key is required" });
+  }
+  if (geminiKeys.length > 5) {
+    context.addIssue({ code: "custom", path: ["GEMINI_API_KEYS"], message: "At most five Gemini API keys are allowed" });
   }
   if (Boolean(env.OLLAMA_BASIC_AUTH_USERNAME) !== Boolean(env.OLLAMA_BASIC_AUTH_PASSWORD)) {
     context.addIssue({
