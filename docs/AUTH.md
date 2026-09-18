@@ -1,5 +1,11 @@
 # 이메일 로그인과 사용자 데이터 분리
 
+## 대회 게스트 모드
+
+심사 기간에는 Supabase Authentication → Providers에서 **Anonymous Sign-Ins**를 활성화하고 Vercel Production에 `GUEST_MODE=true`를 설정한 뒤 재배포한다. 방문자는 입력 없이 익명 세션을 발급받으며 각 브라우저마다 별도의 Auth UUID와 학습 데이터를 사용한다. 기존 회원 세션은 게스트 모드에서 사용하지 않으며 로그인·회원가입 API도 차단한다. 프로필에는 `게스트 체험`과 `로그인 없이 체험 중`을 표시한다.
+
+심사 종료 후 Vercel의 `GUEST_MODE=false`로 변경해 재배포하면 기존 로그인 방식으로 돌아간다. 필요하면 Supabase에서 Anonymous Sign-Ins도 비활성화한다. 익명 사용자는 브라우저 데이터를 지우거나 다른 기기를 사용하면 기존 기록을 다시 찾을 수 없다. 운영 종료 후 Supabase Auth의 익명 사용자와 연결된 앱 데이터를 정리하는 작업은 별도로 수행한다.
+
 ## 구현 범위
 
 - `/login`: 이메일 로그인 링크 발송. 처음 로그인하는 이메일은 Supabase Auth 계정 생성.

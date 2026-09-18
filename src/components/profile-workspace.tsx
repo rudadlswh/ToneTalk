@@ -127,10 +127,11 @@ export function ProfileWorkspace() {
   }
 
   const initial = profile.displayName.trim().charAt(0).toUpperCase() || "T";
+  const isGuest = profile.email === "guest@users.tonetalk.invalid";
 
   return (
     <div className="page-wrap profile-page">
-      <SignOutButton />
+      {!isGuest && <SignOutButton />}
       <header className="page-header profile-header">
         <div>
           <span className="eyebrow">YOUR LEARNING SPACE</span>
@@ -142,9 +143,9 @@ export function ProfileWorkspace() {
       <section className="profile-hero">
         <div className="profile-avatar">{initial}</div>
         <div className="profile-identity">
-          <span className="single-user-badge"><LockKeyhole size={13} /> 개인 계정</span>
+          <span className="single-user-badge"><LockKeyhole size={13} /> {isGuest ? "게스트 체험" : "개인 계정"}</span>
           <h2>{profile.displayName}</h2>
-          <p>{profile.email?.replace(/@users\.tonetalk\.invalid$/, "")}</p>
+          <p>{isGuest ? "로그인 없이 체험 중" : profile.email?.replace(/@users\.tonetalk\.invalid$/, "")}</p>
         </div>
         <div className="profile-joined">함께한 지<strong>{memberDays}일</strong></div>
       </section>

@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 const envSchema = z.object({
+  GUEST_MODE: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
   AI_PROVIDER: z.enum(["ollama", "gemini"]).default("ollama"),
   AI_ENABLED: z.enum(["true", "false"]).default("true").transform(value => value === "true"),
   AI_USER_DAILY_LIMIT: z.coerce.number().int().min(1).max(10000).default(30),

@@ -7,10 +7,12 @@ import { createAuthClient } from "@/server/supabase-auth";
 import { consumeRateLimit } from "@/server/rate-limit";
 import { readLimitedJson } from "@/server/request-body";
 import { logFailure } from "@/server/diagnostics";
+import { isGuestMode } from "@/server/guest-mode";
 
 const credentials = z.object({ username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{4,24}$/), password: z.string().min(8).max(128) });
 export async function passwordAuth(request: Request, signup: boolean) {
   const requestId = crypto.randomUUID();
+  if (isGuestMode()) return jsonError(requestId, 403, "GUEST_MODE", "체험 기간에는 로그인과 회원가입을 사용하지 않습니다.");
   if (!isSameOriginRequest(request)) return jsonError(requestId, 403, "INVALID_ORIGIN", "같은 사이트에서 요청해 주세요.");
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (!consumeRateLimit(`password-ip:${ip}`, 20, 60_000).allowed) return limited(requestId);

@@ -12,7 +12,7 @@ import { isSameOriginRequest, safeAuthNext } from "@/lib/auth-navigation";
 import { getRequestId } from "@/server/diagnostics";
 
 const user = (id: string) => ({ id, email: `${id}@example.invalid`, email_confirmed_at: "2026-01-01", is_anonymous: false });
-beforeEach(() => { mocks.getUser.mockReset(); });
+beforeEach(() => { mocks.getUser.mockReset(); delete process.env.GUEST_MODE; });
 
 describe("verified request identity", () => {
   it("correlates safe auth outages and successful handler IDs", async () => {
@@ -36,6 +36,13 @@ describe("verified request identity", () => {
       await expect(verifyUser()).rejects.toBeInstanceOf(AuthenticationError);
     }
     mocks.getUser.mockResolvedValue({ data: { user: user("a") }, error: { status: 401 } });
+    await expect(verifyUser()).rejects.toBeInstanceOf(AuthenticationError);
+  });
+  it("accepts only isolated anonymous users while guest mode is enabled", async () => {
+    process.env.GUEST_MODE = "true";
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "guest-a", is_anonymous: true } }, error: null });
+    await expect(verifyUser()).resolves.toEqual({ id: "guest-a", email: "guest@users.tonetalk.invalid", isGuest: true });
+    mocks.getUser.mockResolvedValue({ data: { user: user("member-a") }, error: null });
     await expect(verifyUser()).rejects.toBeInstanceOf(AuthenticationError);
   });
   it("keeps two simultaneous requests isolated and deduplicates owner bootstrap only within each request", async () => {

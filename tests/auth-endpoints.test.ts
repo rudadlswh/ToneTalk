@@ -1,22 +1,33 @@
 import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-const mocks = vi.hoisted(() => ({ signUp: vi.fn(), signInWithPassword: vi.fn(), signOut: vi.fn(), exchangeCodeForSession: vi.fn(), getAll: vi.fn(), get: vi.fn(), delete: vi.fn() }));
+const mocks = vi.hoisted(() => ({ signUp: vi.fn(), signInWithPassword: vi.fn(), signInAnonymously: vi.fn(), signOut: vi.fn(), exchangeCodeForSession: vi.fn(), getAll: vi.fn(), get: vi.fn(), delete: vi.fn() }));
 vi.mock("@/server/supabase-auth", () => ({ createAuthClient: async () => ({ auth: mocks }) }));
 vi.mock("next/headers", () => ({ cookies: async () => mocks }));
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as signup } from "@/app/api/auth/signup/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
 import { GET as callback } from "@/app/auth/callback/route";
+import { GET as guest } from "@/app/auth/guest/route";
 import { resetRateLimitsForTests } from "@/server/rate-limit";
 const request = (body: unknown, origin = "https://app.test") => new Request("https://app.test/api/auth/login", { method: "POST", headers: { origin }, body: JSON.stringify(body) });
 const input = { username: "Learner_1", password: "password-123" };
 beforeEach(() => {
   vi.clearAllMocks(); resetRateLimitsForTests();
+  delete process.env.GUEST_MODE;
   mocks.signUp.mockResolvedValue({ data: { session: {} }, error: null });
   mocks.signInWithPassword.mockResolvedValue({ data: { session: {} }, error: null });
   mocks.signOut.mockResolvedValue({ error: null });
+  mocks.signInAnonymously.mockResolvedValue({ data: { session: {}, user: { is_anonymous: true } }, error: null });
   mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
   mocks.getAll.mockReturnValue([]); mocks.get.mockReturnValue(undefined);
+});
+it("creates an isolated anonymous session only while guest mode is enabled", async () => {
+  process.env.GUEST_MODE = "true";
+  const response = await guest(new Request("https://app.test/auth/guest?next=%2Fstudy"));
+  expect(response.status).toBe(307);
+  expect(response.headers.get("location")).toBe("https://app.test/study");
+  expect(mocks.signOut).toHaveBeenCalledWith({ scope: "local" });
+  expect(mocks.signInAnonymously).toHaveBeenCalledOnce();
 });
 it("rejects CSRF and invalid credentials before provider calls", async () => {
   expect((await signup(request(input, "https://evil.test"))).status).toBe(403);

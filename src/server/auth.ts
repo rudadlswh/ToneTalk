@@ -4,8 +4,9 @@ import { jsonError } from "@/lib/api";
 import { isSameOriginRequest } from "@/lib/auth-navigation";
 import { AuthConfigurationError, createAuthClient } from "@/server/supabase-auth";
 import { withRequestId, logFailure } from "@/server/diagnostics";
+import { isGuestMode } from "@/server/guest-mode";
 
-export type AuthenticatedUser = { id: string; email: string };
+export type AuthenticatedUser = { id: string; email: string; isGuest: boolean };
 type AuthContext = { user: AuthenticatedUser; owner?: Promise<string> };
 const context = new AsyncLocalStorage<AuthContext>();
 
@@ -21,8 +22,13 @@ export async function verifyUser(accessToken?: string): Promise<AuthenticatedUse
   const { data, error } = await client.auth.getUser(accessToken);
   if (error && (error.status === undefined || error.status >= 500 || error.status === 429)) throw new AuthenticationUnavailableError(error);
   const user = data.user;
-  if (error || !user || user.is_anonymous || !user.email || !user.email_confirmed_at) throw new AuthenticationError();
-  return { id: user.id, email: user.email };
+  if (error || !user) throw new AuthenticationError();
+  if (isGuestMode()) {
+    if (!user.is_anonymous) throw new AuthenticationError();
+    return { id: user.id, email: "guest@users.tonetalk.invalid", isGuest: true };
+  }
+  if (user.is_anonymous || !user.email || !user.email_confirmed_at) throw new AuthenticationError();
+  return { id: user.id, email: user.email, isGuest: false };
 }
 
 export async function getAuthenticatedUser() {

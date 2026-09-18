@@ -13,7 +13,7 @@ export async function getCurrentOwnerId() {
     // Existing users take the indexed read branch, without a speculative insert.
     // ON CONFLICT still protects two simultaneous first requests.
     await db.execute(sql`insert into ${appUsers} (id, display_name)
-      select ${user.id}, 'ToneTalk Learner'
+      select ${user.id}, ${user.isGuest ? "게스트" : "ToneTalk Learner"}
       where not exists (select 1 from ${appUsers} where id = ${user.id})
       on conflict (id) do nothing`);
     return user.id;
